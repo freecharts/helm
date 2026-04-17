@@ -1,4 +1,23 @@
+# Copyright FreeCharts.
+# SPDX-License-Identifier: MIT License
+
+## @param global.imageRegistry Global Docker image registry
+## @param global.imagePullSecrets Global Docker registry secret names as an array
+## @param global.storageClass Global default StorageClass for Persistent Volume(s)
+##
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+  storageClass: "standard"
+
 # Default values for postgres.
+postgresql:
+  image:
+    repository: "postgres"
+    tag: "18.3"
+    pullPolicy: IfNotPresent
+
+    
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
