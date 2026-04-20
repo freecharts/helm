@@ -2,8 +2,15 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: {{ include "helper.names.fullname" . }}
+  namespace: {{ include "helper.names.namespace" . }}
   labels:
     {{- include "helper.labels.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgresql
+    role: data
 spec:
   serviceName: {{ include "helper.names.fullname" . }}-hl
   replicas: {{ .Values.postgresql.replicaCount }}
+  selector:
+    matchLabels: {{- include "helper.labels.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: postgresql
+      role: data
