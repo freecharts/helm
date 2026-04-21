@@ -16,6 +16,7 @@
                 "test",
                 "--values",
                 "../helm_debug/postgres-values.yaml",
+                "--debug",
                 "--dry-run",
                 ">",
                 "../helm_debug/db.yaml"

@@ -1,3 +1,8 @@
+{{/*
+# Copyright FreeCharts.
+# SPDX-License-Identifier: MIT License
+*/}}
+
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -8,9 +13,29 @@ metadata:
     app.kubernetes.io/component: postgresql
     role: data
 spec:
-  serviceName: {{ include "helper.names.fullname" . }}-hl
+  serviceName: {{ printf "%s-hl" (include "helper.names.fullname" .) }}
   replicas: {{ .Values.postgresql.replicaCount }}
   selector:
     matchLabels: {{- include "helper.labels.selectorLabels" . | nindent 6 }}
       app.kubernetes.io/component: postgresql
       role: data
+  template:
+    metadata:
+      labels:
+        {{- include "helper.labels.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: postgresql
+        role: data
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.postgresql.image.repository }}:{{ .Values.postgresql.image.tag }}"
+          imagePullPolicy: {{ .Values.postgresql.image.pullPolicy }}
+          ports:
+            - name: postgresql
+              containerPort: {{ .Values.postgresql.containerPort }}
+              protocol: TCP
+        
