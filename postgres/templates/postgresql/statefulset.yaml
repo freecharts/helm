@@ -26,13 +26,10 @@ spec:
         app.kubernetes.io/component: postgresql
         role: data
     spec:
-      {{- with .Values.global.imagePullSecrets }}
-      imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+      {{- include "helper.images.imagePullSecrets" (dict "imageRoot" .Values.postgresql.image "global" .Values.global) | nindent 6 -}}
       containers:
-        - name: {{ .Chart.Name }}
-          image: "{{ .Values.postgresql.image.repository }}:{{ .Values.postgresql.image.tag }}"
+        - name: {{ include "helper.names.fullname" . }}
+          image: {{ include "helper.images.image" (dict "imageRoot" .Values.postgresql.image "global" .Values.global "chart" .Chart) }}
           imagePullPolicy: {{ .Values.postgresql.image.pullPolicy }}
           ports:
             - name: postgresql
