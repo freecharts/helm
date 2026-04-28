@@ -16,19 +16,19 @@ Return the proper image name from values.
 {{- if not .imageRoot.tag }}
   {{- if .chart }}
     {{- $termination = .chart.AppVersion | toString -}}
-  {{- end -}}
-{{- end -}}
+  {{- end }}
+{{- end }}
 {{- if .imageRoot.digest }}
     {{- $separator = "@" -}}
     {{- $termination = .imageRoot.digest | toString -}}
-{{- end -}}
+{{- end }}
 {{- if $registryName }}
     {{- printf "%s/%s%s%s" $registryName $repositoryName $separator $termination -}}
-{{- else -}}
+{{- else }}
     {{- printf "%s%s%s"  $repositoryName $separator $termination -}}
-{{- end -}}
-
 {{- end }}
+
+{{- end -}}
 
 {{/*
 Return the proper image pull secret names from values.
@@ -36,13 +36,36 @@ Return the proper image pull secret names from values.
 */}}
 {{- define "helper.images.imagePullSecrets" -}}
 {{- $imagePullSecrets := default .imageRoot.imagePullSecrets ((.global).imagePullSecrets) -}}
+{{- if not .imageRoot.tag }}
+  {{- if .chart }}
+    {{- $termination = .chart.AppVersion | toString -}}
+  {{- end }}
+{{- end }}
 
 {{- if $imagePullSecrets }}
   {{- with $imagePullSecrets }}
     {{- printf "imagePullSecrets:" -}}
     {{- toYaml . | nindent 2 }}
-  {{- end -}}
+  {{- end }}
   {{- println "" -}}
+{{- end }}
+
 {{- end -}}
 
+{{/*
+Return the proper image pullPolicy from values.
+{{ include "helper.images.pullPolicy" ( dict "imageRoot" .Values.path.to.the.image "global" .Values.global "chart" .Chart ) }}
+*/}}
+{{- define "helper.images.pullPolicy" -}}
+{{- $pullPolicy := default .imageRoot.pullPolicy ((.global).pullPolicy) -}}
+
+{{- if not $pullPolicy }}
+  {{- if and (not .imageRoot.tag) (not .chart) -}}
+    {{- $pullPolicy = "Always" -}}
+  {{- else }}
+    {{- $pullPolicy = "IfNotPresent" -}}
+  {{- end }}
 {{- end }}
+{{- printf "%s" $pullPolicy -}}
+
+{{- end -}}

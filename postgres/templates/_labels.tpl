@@ -13,7 +13,7 @@ helm.sh/chart: {{ include "helper.names.chart" . }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
-{{- end }}
+{{- end -}}
 
 {{/*
 Selector labels
@@ -21,4 +21,4 @@ Selector labels
 {{- define "helper.labels.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "helper.names.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
-{{- end }}
+{{- end -}}
