@@ -38,10 +38,10 @@ spec:
           args:
             - -c
             - |
-              FOLDER={{ .Values.postgresql.persistence.mountPath }}/pgdata
-              echo "Creating folder $FOLDER and setting permissions"
-              mkdir -p $FOLDER
-              chmod 700 $FOLDER
+              FOLDER={{ .Values.postgresql.persistence.mountPath }}
+              echo "Creating folder $FOLDER structure and setting permissions"
+              mkdir -p $FOLDER/pgdata $FOLDER/conf
+              chmod 700 $FOLDER/pgdata $FOLDER/conf
           volumeMounts:
             - name: data
               mountPath: {{ .Values.postgresql.persistence.mountPath }}
@@ -63,6 +63,22 @@ spec:
           volumeMounts:
             - name: data
               mountPath: {{ .Values.postgresql.persistence.mountPath }}
+            - name: config
+              mountPath: {{ .Values.postgresql.persistence.mountPath }}/conf/pg_hba.conf
+              subPath: pg_hba.conf
+              readOnly: true
+            {{- if .Values.postgresql.configuration }}
+            - name: config
+              mountPath: {{ printf "%s/%s" .Values.postgresql.persistence.mountPath "conf/postgresql.conf" | quote }}
+              subPath: postgresql.conf
+              readOnly: true
+            {{- end }}
+      volumes:
+        - name: data
+          claimName: data
+        - name: config
+          configMap:
+            name: {{ include "helper.names.fullname" . }}
   volumeClaimTemplates:
     - apiVersion: v1
       kind: PersistentVolumeClaim
