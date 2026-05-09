@@ -29,6 +29,8 @@ diagnosticMode:
 
 # Default values for postgres.
 postgresql:
+  # This set diagnostic mode for PostgreSQL deployment, more information can be found here: https://kubernetes.io/docs/tasks/debug-application-cluster/debug-running-pod/#ephemeral-debug-containers
+  diagnosticModeEnabled: false
   # This sets the container init image more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
   initImage:
     registry: ""
@@ -48,8 +50,6 @@ postgresql:
   replicaCount: 1
   # This sets the container port, more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#field-spec-ports
   containerPort: 5432
-  # This set diagnostic mode for PostgreSQL deployment, more information can be found here: https://kubernetes.io/docs/tasks/debug-application-cluster/debug-running-pod/#ephemeral-debug-containers
-  diagnosticModeEnabled: false
   ## @param postgresql.headlessWithNotReadyAddresses set postgres headless service into publishNotReadyAddresses mode
   ## It can be used to minimize/eliminate Pgpool-II restarts during PostgreSQL rolling upgrades or edge-case situations like
   ## network split. It expects that no other external component will use PostgreSQL headless service to connect or that

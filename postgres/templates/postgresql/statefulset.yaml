@@ -45,6 +45,10 @@ spec:
             - name: postgresql
               containerPort: {{ .Values.postgresql.containerPort }}
               protocol: TCP
+          {{- if .Values.postgresql.diagnosticModeEnabled }}
+          command: {{- include "helper.values.render" (dict "value" .Values.diagnosticMode.command "context" $) | nindent 12 }}
+          args: {{- include "helper.values.render" (dict "value" .Values.diagnosticMode.args "context" $) | nindent 12 }}
+          {{- end }}
           volumeMounts:
             - name: data
               mountPath: /opt/postgresql/pgdata
