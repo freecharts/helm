@@ -28,15 +28,23 @@ spec:
         app.kubernetes.io/component: postgresql
         role: data
     spec:
-      {{- include "helper.images.imagePullSecrets" (dict "imageRoot" .Values.postgresql.image "global" .Values.global) | nindent 6 -}}
+      {{- include "helper.images.imagePullSecrets" (dict "imageRoot" .Values.postgresql "global" .Values.global) | nindent 6 -}}
       initContainers:
         - name: init-chmod-data
           image: {{ include "helper.images.image" (dict "imageRoot" .Values.postgresql.initImage "global" .Values.global) }}
-          imagePullPolicy: {{ include "helper.images.pullPolicy" (dict "imageRoot" .Values.postgresql.image "global" .Values.global) }}
-          command: ["sh", "-c", "chmod 700 /var/lib/postgresql/data"]
+          imagePullPolicy: {{ include "helper.images.pullPolicy" (dict "imageRoot" .Values.postgresql.initImage "global" .Values.global) }}
+          command:
+            - sh
+          args:
+            - -c
+            - |
+              FOLDER={{ .Values.postgresql.persistence.mountPath }}/pgdata
+              echo "Creating folder $FOLDER and setting permissions"
+              mkdir -p $FOLDER
+              chmod 700 $FOLDER
           volumeMounts:
             - name: data
-              mountPath: /opt/postgresql/pgdata
+              mountPath: {{ .Values.postgresql.persistence.mountPath }}
       containers:
         - name: {{ include "helper.names.fullname" . }}
           image: {{ include "helper.images.image" (dict "imageRoot" .Values.postgresql.image "global" .Values.global "chart" .Chart) }}
