@@ -15,9 +15,26 @@ global:
 nameOverride: ""
 fullnameOverride: ""
 namespaceOverride: ""
+## Diagnostic mode in the deployment
+##
+diagnosticMode:
+  ## @param diagnosticMode.command [array] Command to override all containers in the deployment
+  ##
+  command:
+    - sleep
+  ## @param diagnosticMode.args [array] Args to override all containers in the deployment
+  ##
+  args:
+    - infinity
 
 # Default values for postgres.
 postgresql:
+  # This sets the container init image more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
+  initImage:
+    registry: ""
+    repository: "busybox"
+    tag: "1.34.1"
+    pullPolicy: IfNotPresent
   # This sets the container image more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
   image:
     registry: ""
@@ -25,13 +42,14 @@ postgresql:
     repository: "postgres"
     tag: ""
     digest: ""
-    # https://kubernetes.io/docs/concepts/containers/images/
     # default pull policy is 'IfNotPresent' if the tag is not 'latest', otherwise 'Always'
     pullPolicy: ""
   # This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
   replicaCount: 1
-
+  # This sets the container port, more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#field-spec-ports
   containerPort: 5432
+  # This set diagnostic mode for PostgreSQL deployment, more information can be found here: https://kubernetes.io/docs/tasks/debug-application-cluster/debug-running-pod/#ephemeral-debug-containers
+  diagnosticModeEnabled: false
   ## @param postgresql.headlessWithNotReadyAddresses set postgres headless service into publishNotReadyAddresses mode
   ## It can be used to minimize/eliminate Pgpool-II restarts during PostgreSQL rolling upgrades or edge-case situations like
   ## network split. It expects that no other external component will use PostgreSQL headless service to connect or that
@@ -41,6 +59,27 @@ postgresql:
   ## upgrade.
   ##
   headlessWithNotReadyAddresses: false
+  ## Persistence configuration for PostgreSQL data. More information can be found here: https://kubernetes.io/docs/concepts/storage/persistent-volumes/
+  persistence:
+    ## @param postgresql.persistence.storageClass Storage class for persistence
+    storageClass: ""
+    ## @param postgresql.persistence.size Size for persistence
+    size: 8Gi
+  ## @param postgresql.updateStrategy.type Postgresql StatefulSet strategy type
+  ## ref: https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#update-strategies
+  ## e.g:
+  ## updateStrategy:
+  ##  type: RollingUpdate
+  ##  rollingUpdate:
+  ##    maxSurge: 25%
+  ##    maxUnavailable: 25%
+  ##
+  updateStrategy:
+    type: RollingUpdate
+  ## @param postgresql.podManagementPolicy Sets the pod management policy
+  ## ref: https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#pod-management-policies
+  ##
+  podManagementPolicy: Parallel
 
 # Default values for pgpool.
 pgpool:

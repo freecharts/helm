@@ -15,6 +15,8 @@ metadata:
 spec:
   serviceName: {{ printf "%s-hl" (include "helper.names.fullname" .) }}
   replicas: {{ .Values.postgresql.replicaCount }}
+  podManagementPolicy: {{ .Values.postgresql.podManagementPolicy | quote }}
+  updateStrategy: {{- toYaml .Values.postgresql.updateStrategy | nindent 4 }}
   selector:
     matchLabels: {{- include "helper.labels.selectorLabels" . | nindent 6 }}
       app.kubernetes.io/component: postgresql
@@ -27,6 +29,14 @@ spec:
         role: data
     spec:
       {{- include "helper.images.imagePullSecrets" (dict "imageRoot" .Values.postgresql.image "global" .Values.global) | nindent 6 -}}
+      initContainers:
+        - name: init-chmod-data
+          image: {{ include "helper.images.image" (dict "imageRoot" .Values.postgresql.initImage "global" .Values.global) }}
+          imagePullPolicy: {{ include "helper.images.pullPolicy" (dict "imageRoot" .Values.postgresql.image "global" .Values.global) }}
+          command: ["sh", "-c", "chmod 700 /var/lib/postgresql/data"]
+          volumeMounts:
+            - name: data
+              mountPath: /opt/postgresql/pgdata
       containers:
         - name: {{ include "helper.names.fullname" . }}
           image: {{ include "helper.images.image" (dict "imageRoot" .Values.postgresql.image "global" .Values.global "chart" .Chart) }}
@@ -35,4 +45,22 @@ spec:
             - name: postgresql
               containerPort: {{ .Values.postgresql.containerPort }}
               protocol: TCP
-        
+          volumeMounts:
+            - name: data
+              mountPath: /opt/postgresql/pgdata
+  volumeClaimTemplates:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: data
+        labels:
+          {{- include "helper.labels.labels" . | nindent 10 }}
+          app.kubernetes.io/component: postgresql
+          role: data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: {{ .Values.postgresql.persistence.size }}
+        {{- include "helper.names.storageClass" (dict "persistence" .Values.postgresql.persistence "global" .Values.global) | nindent 10 }}
+    

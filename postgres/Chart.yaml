@@ -15,7 +15,9 @@ keywords:
 maintainers:
   - name: Eric Grossi / FreeCharts
     url: https://github.com/freecharts
-
+annotations:
+  licence: MIT License
+dependencies: []
 version: 18.3
 appVersion: "18.3"
 
