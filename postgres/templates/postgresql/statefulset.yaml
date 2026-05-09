@@ -49,9 +49,12 @@ spec:
           command: {{- include "helper.values.render" (dict "value" .Values.diagnosticMode.command "context" $) | nindent 12 }}
           args: {{- include "helper.values.render" (dict "value" .Values.diagnosticMode.args "context" $) | nindent 12 }}
           {{- end }}
+          env:
+            - name: PGDATA
+              value: {{ printf "%s/%s" .Values.postgresql.persistence.mountPath "pgdata" | quote }}
           volumeMounts:
             - name: data
-              mountPath: /opt/postgresql/pgdata
+              mountPath: {{ .Values.postgresql.persistence.mountPath }}
   volumeClaimTemplates:
     - apiVersion: v1
       kind: PersistentVolumeClaim

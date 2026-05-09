@@ -63,6 +63,9 @@ postgresql:
   persistence:
     ## @param postgresql.persistence.storageClass Storage class for persistence
     storageClass: ""
+    ## @param postgresql.persistence.mountPath The path the volume will be mounted at, useful when using different PostgreSQL images.
+    ##
+    mountPath: /opt/postgresql
     ## @param postgresql.persistence.size Size for persistence
     size: 8Gi
   ## @param postgresql.updateStrategy.type Postgresql StatefulSet strategy type
