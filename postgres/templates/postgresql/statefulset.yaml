@@ -28,11 +28,14 @@ spec:
         app.kubernetes.io/component: postgresql
         role: data
     spec:
-      {{- include "helper.images.imagePullSecrets" (dict "imageRoot" .Values.postgresql "global" .Values.global) | nindent 6 -}}
+      {{- include "helper.images.imagePullSecrets" (dict "imageRoot" .Values.postgresql "global" .Values.global) | nindent 6 }}
+      {{- include "helper.pods.renderSecurityContext" (dict "securityContext" .Values.postgresql.podSecurityContext) | nindent 6 }}
       initContainers:
         - name: init-chmod-data
           image: {{ include "helper.images.image" (dict "imageRoot" .Values.postgresql.initImage "global" .Values.global) }}
           imagePullPolicy: {{ include "helper.images.pullPolicy" (dict "imageRoot" .Values.postgresql.initImage "global" .Values.global) }}
+          securityContext:
+            runAsUser: 0
           command:
             - sh
           args:
@@ -40,8 +43,9 @@ spec:
             - |
               FOLDER={{ .Values.postgresql.persistence.mountPath }}
               echo "Creating folder $FOLDER structure and setting permissions"
-              mkdir -p $FOLDER/pgdata $FOLDER/conf
+              mkdir $FOLDER/pgdata $FOLDER/conf
               chmod 700 $FOLDER/pgdata $FOLDER/conf
+              chown -R {{ .Values.postgresql.containerSecurityContext.runAsUser }}:{{ .Values.postgresql.containerSecurityContext.runAsGroup }} $FOLDER/pgdata $FOLDER/conf
           volumeMounts:
             - name: data
               mountPath: {{ .Values.postgresql.persistence.mountPath }}
@@ -49,6 +53,7 @@ spec:
         - name: {{ include "helper.names.fullname" . }}
           image: {{ include "helper.images.image" (dict "imageRoot" .Values.postgresql.image "global" .Values.global "chart" .Chart) }}
           imagePullPolicy: {{ include "helper.images.pullPolicy" (dict "imageRoot" .Values.postgresql.image "global" .Values.global "chart" .Chart) }}
+          {{- include "helper.pods.renderSecurityContext" (dict "securityContext" .Values.postgresql.containerSecurityContext) | nindent 10 }}
           ports:
             - name: postgresql
               containerPort: {{ .Values.postgresql.containerPort }}
@@ -62,7 +67,11 @@ spec:
               value: {{ printf "%s/%s" .Values.postgresql.persistence.mountPath "pgdata" | quote }}
           volumeMounts:
             - name: data
-              mountPath: {{ .Values.postgresql.persistence.mountPath }}
+              mountPath: {{ .Values.postgresql.persistence.mountPath }}/pgdata
+              subPath: pgdata
+            - name: data
+              mountPath: {{ .Values.postgresql.persistence.mountPath }}/conf
+              subPath: conf
             - name: config
               mountPath: {{ .Values.postgresql.persistence.mountPath }}/conf/pg_hba.conf
               subPath: pg_hba.conf

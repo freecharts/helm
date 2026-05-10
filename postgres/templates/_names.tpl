@@ -44,7 +44,7 @@ Allow the release namespace to be overridden for multi-namespace deployments in 
 
 {{/*
 Return  the proper Storage Class
-{{ include "helper.storage.class" ( dict "persistence" .Values.path.to.the.persistence "global" .Values.global) }}
+{{ include "helper.names.storageClass" ( dict "persistence" .Values.path.to.the.persistence "global" .Values.global) }}
 */}}
 {{- define "helper.names.storageClass" -}}
 {{- $storageClass := (.global).storageClass | default .persistence.storageClass | default (.global).defaultStorageClass | default "" -}}

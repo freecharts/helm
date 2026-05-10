@@ -40,18 +40,12 @@ Return the proper image pull secret names from values.
 {{- $imageRoot := .imageRoot | default dict -}}
 {{- $global := .global | default dict -}}
 {{- $imagePullSecrets := default $imageRoot.imagePullSecrets $global.imagePullSecrets -}}
-{{- if not $imageRoot.tag }}
-  {{- if .chart }}
-    {{- $termination = .chart.AppVersion | toString -}}
-  {{- end }}
-{{- end }}
 
 {{- if $imagePullSecrets }}
   {{- with $imagePullSecrets }}
     {{- printf "imagePullSecrets:" -}}
     {{- toYaml . | nindent 2 }}
   {{- end }}
-  {{- println "" -}}
 {{- end }}
 
 {{- end -}}

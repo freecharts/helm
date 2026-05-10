@@ -1,6 +1,11 @@
 # Copyright FreeCharts.
 # SPDX-License-Identifier: MIT License
 
+## @param nameOverride This is to override the chart name.
+nameOverride: ""
+fullnameOverride: ""
+namespaceOverride: ""
+
 ## @param global.imageRegistry Global Docker image registry
 ## @param global.imagePullSecrets Global Docker registry secret names as an array
 ## @param global.storageClass Global default StorageClass for Persistent Volume(s)
@@ -11,12 +16,7 @@ global:
   pullPolicy: ""
   storageClass: ""
   defaultStorageClass: ""
-
-## @param nameOverride This is to override the chart name.
-nameOverride: ""
-fullnameOverride: ""
-namespaceOverride: ""
-## @param diagnosticModeEnabled Diagnostic mode in the deployment
+## @param diagnosticMode Diagnostic mode in the deployment
 ##
 diagnosticMode:
   ## @param diagnosticMode.command [array] Command to override all containers in the deployment
@@ -103,6 +103,30 @@ postgresql:
   ##   ...
   ##
   pgHbaConfiguration: ""
+  ## @param postgresql.podSecurityContext Security context for PostgreSQL pods, 
+  ## more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
+  podSecurityContext:
+    fsGroupChangePolicy: OnRootMismatch
+    fsGroup: 999
+  ## Container Security Context
+  ## https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
+  ## e.g:
+  ##   containerSecurityContext:
+  ##     capabilities:
+  ##       drop: ["NET_RAW"]
+  ##     readOnlyRootFilesystem: true
+  ##
+  containerSecurityContext:
+    runAsUser: 999
+    runAsGroup: 999
+    runAsNonRoot: true
+    privileged: false
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: ["ALL"]
+    seccompProfile:
+      type: "RuntimeDefault"
 
 ## @param pgpool Default values for pgpool.
 pgpool:
