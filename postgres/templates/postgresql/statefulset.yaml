@@ -43,12 +43,18 @@ spec:
             - |
               FOLDER={{ .Values.postgresql.persistence.mountPath }}
               echo "Creating folder $FOLDER structure and setting permissions"
-              mkdir $FOLDER/pgdata $FOLDER/conf
-              chmod 700 $FOLDER/pgdata $FOLDER/conf
+              mkdir -p $FOLDER/pgdata $FOLDER/conf && \
+              chmod 700 $FOLDER/pgdata $FOLDER/conf && \
               chown -R {{ .Values.postgresql.containerSecurityContext.runAsUser }}:{{ .Values.postgresql.containerSecurityContext.runAsGroup }} $FOLDER/pgdata $FOLDER/conf
+              mkdir -p /var/run/postgresql && \
+              chmod 777 /var/run/postgresql && \
+              chown -R {{ .Values.postgresql.containerSecurityContext.runAsUser }}:{{ .Values.postgresql.containerSecurityContext.runAsGroup }} /var/run/postgresql
           volumeMounts:
             - name: data
               mountPath: {{ .Values.postgresql.persistence.mountPath }}
+            - name: empty-dir
+              mountPath: /var/run
+              subPath: run
       containers:
         - name: {{ include "helper.names.fullname" . }}
           image: {{ include "helper.images.image" (dict "imageRoot" .Values.postgresql.image "global" .Values.global "chart" .Chart) }}
@@ -67,24 +73,22 @@ spec:
               value: {{ printf "%s/%s" .Values.postgresql.persistence.mountPath "pgdata" | quote }}
           volumeMounts:
             - name: data
-              mountPath: {{ .Values.postgresql.persistence.mountPath }}/pgdata
-              subPath: pgdata
-            - name: data
-              mountPath: {{ .Values.postgresql.persistence.mountPath }}/conf
-              subPath: conf
+              mountPath: {{ .Values.postgresql.persistence.mountPath }}
+              subPath:  {{ .Values.postgresql.persistence.subPath | default "" }}
             - name: config
               mountPath: {{ .Values.postgresql.persistence.mountPath }}/conf/pg_hba.conf
               subPath: pg_hba.conf
               readOnly: true
-            {{- if .Values.postgresql.configuration }}
             - name: config
               mountPath: {{ printf "%s/%s" .Values.postgresql.persistence.mountPath "conf/postgresql.conf" | quote }}
               subPath: postgresql.conf
               readOnly: true
-            {{- end }}
+            - name: empty-dir
+              mountPath: /var/run/postgresql
+              subPath: run/postgresql
       volumes:
-        - name: data
-          claimName: data
+        - name: empty-dir
+          emptyDir: {}
         - name: config
           configMap:
             name: {{ include "helper.names.fullname" . }}

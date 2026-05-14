@@ -15,7 +15,11 @@ metadata:
 data:
   {{- if .Values.postgresql.configuration }}
   postgresql.conf: |-
+    # From config map
     {{- include "helper.values.render" ( dict "value" .Values.postgresql.configuration "context" $ ) | nindent 4 }}
+  {{- else }}
+  postgresql.conf: |-
+    # From config map
   {{- end }}
   {{- if .Values.postgresql.pgHbaConfiguration }}
   {{- include "helper.values.render" ( dict "value" .Values.postgresql.pgHbaConfiguration "context" $ ) | nindent 4 }}
