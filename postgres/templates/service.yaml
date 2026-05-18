@@ -1,0 +1,25 @@
+{{/*
+# Copyright FreeCharts.
+# SPDX-License-Identifier: MIT License
+*/}}
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "helper.names.fullname" . }}
+  namespace: {{ include "helper.names.namespace" . | quote }}
+  labels:
+    {{- include "helper.labels.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgresql
+    role: data
+spec:
+  type: ClusterIP
+  ports:
+    - name: {{ .Values.service.portName }}
+      port: {{ .Values.service.port }}
+      targetPort: postgresql
+      protocol: TCP
+  selector: 
+    matchLabels: {{- include "helper.labels.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: postgresql
+      role: data
