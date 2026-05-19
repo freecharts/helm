@@ -80,6 +80,20 @@ spec:
                 secretKeyRef:
                   name: {{ include "helper.names.fullname" . }}
                   key: POSTGRES_PASSWORD
+          {{- if not .Values.postgresql.diagnosticModeEnabled }}
+          startupProbe: {{- include "helper.values.render" ( dict "value" .Values.postgresql.startupProbe "context" $ ) | nindent 12 }}
+            exec:
+              command:
+                - pg_isready
+          readinessProbe: {{- include "helper.values.render" ( dict "value" .Values.postgresql.readinessProbe "context" $ ) | nindent 12 }}
+            exec:
+              command:
+                - pg_isready
+          livenessProbe: {{- include "helper.values.render" ( dict "value" .Values.postgresql.livenessProbe "context" $ ) | nindent 12 }}
+            exec:
+              command:
+                - pg_isready
+          {{- end }}
           volumeMounts:
             - name: data
               mountPath: {{ .Values.postgresql.persistence.mountPath }}
