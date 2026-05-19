@@ -16,6 +16,9 @@ global:
   pullPolicy: ""
   storageClass: ""
   defaultStorageClass: ""
+  pgDbName: "postgres"
+  pgDbUser: "postgres"
+  pgDbPassword: "change_me"
 ## @param diagnosticMode Diagnostic mode in the deployment
 ##
 diagnosticMode:

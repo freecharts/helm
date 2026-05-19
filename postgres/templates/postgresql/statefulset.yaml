@@ -71,6 +71,15 @@ spec:
           env:
             - name: PGDATA
               value: {{ printf "%s/%s" .Values.postgresql.persistence.mountPath "pgdata" | quote }}
+            - name: POSTGRES_DB
+              value: {{ .Values.global.pgDbName }}
+            - name: POSTGRES_USER
+              value: {{ .Values.global.pgDbUser }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "helper.names.fullname" . }}
+                  key: POSTGRES_PASSWORD
           volumeMounts:
             - name: data
               mountPath: {{ .Values.postgresql.persistence.mountPath }}
