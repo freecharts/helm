@@ -80,6 +80,10 @@ spec:
                 secretKeyRef:
                   name: {{ include "helper.names.fullname" . }}
                   key: POSTGRES_PASSWORD
+            - name: POSTGRES_INITDB_ARGS
+              value: >-
+                -c include_if_exists={{ printf "%s/%s" .Values.postgresql.persistence.mountPath "conf/postgresql.conf" | quote }}
+                -c hba_file={{ printf "%s/%s" .Values.postgresql.persistence.mountPath "conf/pg_hba.conf" | quote }}
           {{- if not .Values.postgresql.diagnosticModeEnabled }}
           startupProbe: {{- include "helper.values.render" ( dict "value" .Values.postgresql.startupProbe "context" $ ) | nindent 12 }}
             exec:
