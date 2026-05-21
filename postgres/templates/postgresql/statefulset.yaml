@@ -69,6 +69,8 @@ spec:
           args: {{- include "helper.values.render" (dict "value" .Values.diagnosticMode.args "context" $) | nindent 12 }}
           {{- end }}
           env:
+            - name: TZ
+              value: {{ .Values.postgresql.timezone }}
             - name: PGDATA
               value: {{ printf "%s/%s" .Values.postgresql.persistence.mountPath "pgdata" | quote }}
             - name: POSTGRES_DB
@@ -97,6 +99,11 @@ spec:
             exec:
               command:
                 - pg_isready
+          {{- end }}
+          {{- if .Values.postgresql.resources }}
+          resources: {{- include "helper.values.render" (dict "value" .Values.postgresql.resources "context" $) | nindent 12 }}
+          {{- else }}
+          resources: {{- include "helper.resources.preset" (dict "type" .Values.postgresql.resourcesPreset) | nindent 12 }}
           {{- end }}
           volumeMounts:
             - name: data

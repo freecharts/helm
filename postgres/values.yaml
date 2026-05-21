@@ -91,6 +91,8 @@ postgresql:
   ## ref: https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#pod-management-policies
   ##
   podManagementPolicy: Parallel
+  ## @param postgresql.timezone Timezone for PostgreSQL container, more information can be found here: https://www.postgresql.org/docs/current/datetime-config.html#GUC-TIMEZONE
+  timezone: "Europe/Zurich"
   ## You can use this parameter to specify the content for postgresql.conf
   ## Example:
   ## configuration: |-
@@ -108,6 +110,22 @@ postgresql:
   ##   ...
   ##
   pgHbaConfiguration: ""
+
+  ## @param postgresql.resourcesPreset Preset for PostgreSQL resource requests and limits, more information can be found here: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/#resource-presets
+  ## e.g:
+  ## resourcesPreset: medium
+  resourcesPreset: nano
+  ## @param postgresql.resources Resource requests and limits for PostgreSQL container, more information can be found here: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+  ## e.g:
+  ## resources:
+  ##   limits:
+  ##     cpu: 100m
+  ##     memory: 128Mi
+  ##   requests:
+  ##     cpu: 100m
+  ##     memory: 128Mi
+  ## 
+  resources: {}
   ## @param postgresql.podSecurityContext Security context for PostgreSQL pods, 
   ## more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
   podSecurityContext:
