@@ -110,7 +110,22 @@ postgresql:
   ##   ...
   ##
   pgHbaConfiguration: ""
-
+  ## @param witness.nodeSelector Node labels for PostgreSQL witness pods assignment
+  ## ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/
+  ##
+  nodeSelector: {}
+  ## @param witness.tolerations Tolerations for PostgreSQL witness pods assignment
+  ## ref: https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
+  ##
+  tolerations: []
+  ## @param witness.priorityClassName Pod priority class
+  ## Ref: https://kubernetes.io/docs/concepts/configuration/pod-priority-preemption/
+  ##
+  priorityClassName: ""
+  ## @param witness.terminationGracePeriodSeconds Seconds PostgreSQL witness pod needs to terminate gracefully
+  ## ref: https://kubernetes.io/docs/concepts/workloads/pods/pod/#termination-of-pods
+  ##
+  terminationGracePeriodSeconds: ""
   ## @param postgresql.resourcesPreset Preset for PostgreSQL resource requests and limits, more information can be found here: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/#resource-presets
   ## e.g:
   ## resourcesPreset: medium

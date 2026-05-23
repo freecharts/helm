@@ -30,6 +30,18 @@ spec:
     spec:
       {{- include "helper.images.imagePullSecrets" (dict "imageRoot" .Values.postgresql "global" .Values.global) | nindent 6 }}
       {{- include "helper.pods.renderSecurityContext" (dict "securityContext" .Values.postgresql.podSecurityContext) | nindent 6 }}
+      {{- if .Values.postgresql.nodeSelector }}
+      nodeSelector: {{- include "helper.values.render" (dict "value" .Values.postgresql.nodeSelector "context" $) | nindent 8 }}
+      {{- end }}
+      {{- if .Values.postgresql.tolerations }}
+      tolerations: {{- include "helper.values.render" (dict "value" .Values.postgresql.tolerations "context" $) | nindent 8 }}
+      {{- end }}
+      {{- if .Values.postgresql.priorityClassName }}
+      priorityClassName: {{ .Values.postgresql.priorityClassName | quote }}
+      {{- end }}
+      {{- if .Values.postgresql.terminationGracePeriodSeconds }}
+      terminationGracePeriodSeconds: {{ .Values.postgresql.terminationGracePeriodSeconds }}
+      {{- end }}
       initContainers:
         - name: init-chmod-data
           image: {{ include "helper.images.image" (dict "imageRoot" .Values.postgresql.initImage "global" .Values.global) }}
