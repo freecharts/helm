@@ -3,15 +3,12 @@
 
 apiVersion: v2
 type: application
-name: postgres
-description: A Helm chart for Postgresql database including
-    pg_pool addon for connection pooling.
+name: helper
+description: A Helm chart to provide helm helpers.
 home: https://github.com/freecharts/helm
 keywords:
-  - postgres
-  - postgresql
-  - database
-  - pg_pool
+  - utilites
+  - helper
 maintainers:
   - name: Eric Grossi / FreeCharts
     url: https://github.com/freecharts
@@ -19,6 +16,6 @@ annotations:
   licence: MIT License
 dependencies: []
 version: 1.0.0
-appVersion: "18.3"
+appVersion: "1.0.0"
 
 

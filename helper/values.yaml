@@ -1,0 +1,7 @@
+# Copyright FreeCharts.
+# SPDX-License-Identifier: MIT License
+
+example:
+  - name: example
+    description: This is an example of how to use the helper chart.
+    values: exemples/example-values.yaml
