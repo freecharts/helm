@@ -1,3 +1,6 @@
-dependencies: []
-digest: sha256:643d5437104296e21d906ecb15b2c96ad278f20cfc4af53b12bb6069bd853726
-generated: "2026-05-24T10:10:04.612853089+02:00"
+dependencies:
+- name: helper
+  repository: file://../helper
+  version: 1.0.0
+digest: sha256:39cd3ed6f7112c83e1cbd390ceb94ce474b2b1c77555bdda1f1a27f03e7f943a
+generated: "2026-05-24T10:14:52.151416071+02:00"
