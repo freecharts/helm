@@ -1,0 +1,21 @@
+{{/*
+# Copyright FreeCharts.
+# SPDX-License-Identifier: MIT License
+*/}}
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "helper.names.fullname" . }}-test-connection"
+  namespace: {{ include "helper.names.namespace" . }}
+  labels:
+    {{- include "helper.labels.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['{{ include "helper.names.fullname" . }}:{{ .Values.service.port }}']
+  restartPolicy: Never

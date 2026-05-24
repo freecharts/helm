@@ -1,0 +1,156 @@
+{{/*
+# Copyright FreeCharts.
+# SPDX-License-Identifier: MIT License
+*/}}
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "helper.names.fullname" . }}
+  namespace: {{ include "helper.names.namespace" . }}
+  labels:
+    {{- include "helper.labels.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgresql
+    role: data
+spec:
+  serviceName: {{ printf "%s-hl" (include "helper.names.fullname" .) }}
+  replicas: {{ .Values.postgresql.replicaCount }}
+  podManagementPolicy: {{ .Values.postgresql.podManagementPolicy | quote }}
+  updateStrategy: {{- toYaml .Values.postgresql.updateStrategy | nindent 4 }}
+  selector:
+    matchLabels: {{- include "helper.labels.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: postgresql
+      role: data
+  template:
+    metadata:
+      labels:
+        {{- include "helper.labels.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: postgresql
+        role: data
+    spec:
+      {{- include "helper.images.imagePullSecrets" (dict "imageRoot" .Values.postgresql "global" .Values.global) | nindent 6 }}
+      {{- include "helper.pods.renderSecurityContext" (dict "securityContext" .Values.postgresql.podSecurityContext) | nindent 6 }}
+      {{- if .Values.postgresql.nodeSelector }}
+      nodeSelector: {{- include "helper.values.render" (dict "value" .Values.postgresql.nodeSelector "context" $) | nindent 8 }}
+      {{- end }}
+      {{- if .Values.postgresql.tolerations }}
+      tolerations: {{- include "helper.values.render" (dict "value" .Values.postgresql.tolerations "context" $) | nindent 8 }}
+      {{- end }}
+      {{- if .Values.postgresql.priorityClassName }}
+      priorityClassName: {{ .Values.postgresql.priorityClassName | quote }}
+      {{- end }}
+      {{- if .Values.postgresql.terminationGracePeriodSeconds }}
+      terminationGracePeriodSeconds: {{ .Values.postgresql.terminationGracePeriodSeconds }}
+      {{- end }}
+      initContainers:
+        - name: init-chmod-data
+          image: {{ include "helper.images.image" (dict "imageRoot" .Values.postgresql.initImage "global" .Values.global) }}
+          imagePullPolicy: {{ include "helper.images.pullPolicy" (dict "imageRoot" .Values.postgresql.initImage "global" .Values.global) }}
+          securityContext:
+            runAsUser: 0
+          command:
+            - sh
+          args:
+            - -c
+            - |
+              FOLDER={{ .Values.postgresql.persistence.mountPath }}
+              echo "Creating folder $FOLDER structure and setting permissions"
+              mkdir -p $FOLDER/pgdata $FOLDER/conf && \
+              chmod 700 $FOLDER/pgdata $FOLDER/conf && \
+              chown -R {{ .Values.postgresql.containerSecurityContext.runAsUser }}:{{ .Values.postgresql.containerSecurityContext.runAsGroup }} $FOLDER/pgdata $FOLDER/conf
+              mkdir -p /var/run/postgresql && \
+              chmod 777 /var/run/postgresql && \
+              chown -R {{ .Values.postgresql.containerSecurityContext.runAsUser }}:{{ .Values.postgresql.containerSecurityContext.runAsGroup }} /var/run/postgresql
+          volumeMounts:
+            - name: data
+              mountPath: {{ .Values.postgresql.persistence.mountPath }}
+            - name: empty-dir
+              mountPath: /var/run
+              subPath: run
+      containers:
+        - name: {{ include "helper.names.fullname" . }}
+          image: {{ include "helper.images.image" (dict "imageRoot" .Values.postgresql.image "global" .Values.global "chart" .Chart) }}
+          imagePullPolicy: {{ include "helper.images.pullPolicy" (dict "imageRoot" .Values.postgresql.image "global" .Values.global "chart" .Chart) }}
+          {{- include "helper.pods.renderSecurityContext" (dict "securityContext" .Values.postgresql.containerSecurityContext) | nindent 10 }}
+          ports:
+            - name: postgresql
+              containerPort: {{ .Values.postgresql.containerPort }}
+              protocol: TCP
+          {{- if .Values.postgresql.diagnosticModeEnabled }}
+          command: {{- include "helper.values.render" (dict "value" .Values.diagnosticMode.command "context" $) | nindent 12 }}
+          args: {{- include "helper.values.render" (dict "value" .Values.diagnosticMode.args "context" $) | nindent 12 }}
+          {{- end }}
+          env:
+            - name: TZ
+              value: {{ .Values.postgresql.timezone }}
+            - name: PGDATA
+              value: {{ printf "%s/%s" .Values.postgresql.persistence.mountPath "pgdata" | quote }}
+            - name: POSTGRES_DB
+              value: {{ .Values.global.pgDbName }}
+            - name: POSTGRES_USER
+              value: {{ .Values.global.pgDbUser }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "helper.names.fullname" . }}
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_INITDB_ARGS
+              value: >-
+                -c include_if_exists={{ printf "%s/%s" .Values.postgresql.persistence.mountPath "conf/postgresql.conf" | quote }}
+                -c hba_file={{ printf "%s/%s" .Values.postgresql.persistence.mountPath "conf/pg_hba.conf" | quote }}
+          {{- if not .Values.postgresql.diagnosticModeEnabled }}
+          startupProbe: {{- include "helper.values.render" ( dict "value" .Values.postgresql.startupProbe "context" $ ) | nindent 12 }}
+            exec:
+              command:
+                - pg_isready
+          readinessProbe: {{- include "helper.values.render" ( dict "value" .Values.postgresql.readinessProbe "context" $ ) | nindent 12 }}
+            exec:
+              command:
+                - pg_isready
+          livenessProbe: {{- include "helper.values.render" ( dict "value" .Values.postgresql.livenessProbe "context" $ ) | nindent 12 }}
+            exec:
+              command:
+                - pg_isready
+          {{- end }}
+          {{- if .Values.postgresql.resources }}
+          resources: {{- include "helper.values.render" (dict "value" .Values.postgresql.resources "context" $) | nindent 12 }}
+          {{- else }}
+          resources: {{- include "helper.resources.preset" (dict "type" .Values.postgresql.resourcesPreset) | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: data
+              mountPath: {{ .Values.postgresql.persistence.mountPath }}
+              subPath:  {{ .Values.postgresql.persistence.subPath | default "" }}
+            - name: config
+              mountPath: {{ .Values.postgresql.persistence.mountPath }}/conf/pg_hba.conf
+              subPath: pg_hba.conf
+              readOnly: true
+            - name: config
+              mountPath: {{ printf "%s/%s" .Values.postgresql.persistence.mountPath "conf/postgresql.conf" | quote }}
+              subPath: postgresql.conf
+              readOnly: true
+            - name: empty-dir
+              mountPath: /var/run/postgresql
+              subPath: run/postgresql
+      volumes:
+        - name: empty-dir
+          emptyDir: {}
+        - name: config
+          configMap:
+            name: {{ include "helper.names.fullname" . }}
+  volumeClaimTemplates:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: data
+        labels:
+          {{- include "helper.labels.labels" . | nindent 10 }}
+          app.kubernetes.io/component: postgresql
+          role: data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: {{ .Values.postgresql.persistence.size }}
+        {{- include "helper.names.storageClass" (dict "persistence" .Values.postgresql.persistence "global" .Values.global) | nindent 10 }}
+    

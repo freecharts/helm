@@ -1,0 +1,41 @@
+{{/*
+# Copyright FreeCharts.
+# SPDX-License-Identifier: MIT License
+*/}}
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "helper.names.fullname" . }}
+  namespace: {{ include "helper.names.namespace" . | quote }}
+  labels: 
+    {{- include "helper.labels.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgresql
+    role: data
+data:
+  {{- if .Values.postgresql.configuration }}
+  postgresql.conf: |-
+    # From config map
+    {{- include "helper.values.render" ( dict "value" .Values.postgresql.configuration "context" $ ) | nindent 4 }}
+  {{- else }}
+  postgresql.conf: |-
+    # From config map
+  {{- end }}
+  {{- if .Values.postgresql.pgHbaConfiguration }}
+  {{- include "helper.values.render" ( dict "value" .Values.postgresql.pgHbaConfiguration "context" $ ) | nindent 4 }}
+  {{- else }}
+  pg_hba.conf: |-
+    # TYPE  DATABASE        USER            ADDRESS                 METHOD
+    # "local" is for Unix domain socket connections only
+    local   all             all                                     trust
+    # IPv4 local connections:
+    host    all             all             127.0.0.1/32            trust
+    # IPv6 local connections:
+    host    all             all             ::1/128                 trust
+    # Allow replication connections from localhost, by a user with the
+    # replication privilege.
+    local   replication     all                                     trust
+    host    replication     all             127.0.0.1/32            trust
+    host    replication     all             ::1/128                 trust
+    host    all             all             all                     scram-sha-256
+  {{- end }}

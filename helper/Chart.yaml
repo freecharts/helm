@@ -1,0 +1,21 @@
+# Copyright FreeCharts.
+# SPDX-License-Identifier: MIT License
+
+apiVersion: v2
+type: application
+name: helper
+description: A Helm chart to provide helm helpers.
+home: https://github.com/freecharts/helm
+keywords:
+  - utilites
+  - helper
+maintainers:
+  - name: Eric Grossi / FreeCharts
+    url: https://github.com/freecharts
+annotations:
+  licence: MIT License
+dependencies: []
+version: 1.0.0
+appVersion: "1.0.0"
+
+
