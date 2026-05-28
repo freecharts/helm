@@ -110,6 +110,18 @@ postgresql:
   ##   ...
   ##
   pgHbaConfiguration: ""
+  ## @param postgresql.podAffinity Pod affinity for PostgreSQL pods assignment
+  ## ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity
+  ## e.g:
+  ##         labelSelector:
+  ##           matchLabels:
+  ##             app.kubernetes.io/name: essais
+  ##             app.kubernetes.io/instance: dbtest
+  ##             app.kubernetes.io/component: demo
+  ##             role: data
+  ##         topologyKey: "kubernetes.io/hostname"
+  ##
+  podAffinity: {}
   ## @param postgresql.nodeSelector Node labels for PostgreSQL pods assignment
   ## ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/
   ##
