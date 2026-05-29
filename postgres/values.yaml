@@ -122,6 +122,7 @@ postgresql:
   ##         topologyKey: "kubernetes.io/hostname"
   ##
   podAffinity: {}
+  podAffinityWeight: 1
   ## @param postgresql.nodeSelector Node labels for PostgreSQL pods assignment
   ## ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/
   ##

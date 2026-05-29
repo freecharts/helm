@@ -35,7 +35,8 @@ spec:
       {{- if .Values.postgresql.podAffinity }}
         podAffinity: 
           preferredDuringSchedulingIgnoredDuringExecution:
-            - podAffinityTerm:
+            - weight: {{ .Values.postgresql.podAffinityWeight }}
+              podAffinityTerm:
             {{- with .Values.postgresql.podAffinity }}
             {{- toYaml . | nindent 16 }}
             {{- end }}
