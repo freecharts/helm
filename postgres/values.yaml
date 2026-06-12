@@ -139,6 +139,8 @@ postgresql:
   ## ref: https://kubernetes.io/docs/concepts/workloads/pods/pod/#termination-of-pods
   ##
   terminationGracePeriodSeconds: ""
+  ## @param postgresql.devShmSize Size of /dev/shm for PostgreSQL container, more information can be found here: https://www.postgresql.org/docs/current/kernel-resources.html#KRNLMEM-SHMEM
+  devShmSize: 256Mi
   ## @param postgresql.resourcesPreset Preset for PostgreSQL resource requests and limits, more information can be found here: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/#resource-presets
   ## e.g:
   ## resourcesPreset: medium

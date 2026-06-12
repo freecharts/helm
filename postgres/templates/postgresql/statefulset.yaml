@@ -140,12 +140,18 @@ spec:
               mountPath: {{ printf "%s/%s" .Values.postgresql.persistence.mountPath "conf/postgresql.conf" | quote }}
               subPath: postgresql.conf
               readOnly: true
+            - name: devShm
+              mountPath: /dev/shm
             - name: empty-dir
               mountPath: /var/run/postgresql
               subPath: run/postgresql
       volumes:
         - name: empty-dir
           emptyDir: {}
+        - name: devShm
+          emptyDir:
+            medium: Memory
+            sizeLimit: {{ .Values.postgresql.devShmSize }}
         - name: config
           configMap:
             name: {{ include "helper.names.fullname" . }}
