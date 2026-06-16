@@ -14,7 +14,7 @@ metadata:
     role: data
 spec:
   serviceName: {{ printf "%s-hl" (include "helper.names.fullname" .) }}
-  replicas: {{ .Values.postgresql.replicaCount }}
+  replicas: {{ .Values.postgresql.replicas }}
   podManagementPolicy: {{ .Values.postgresql.podManagementPolicy | quote }}
   updateStrategy: {{- toYaml .Values.postgresql.updateStrategy | nindent 4 }}
   selector:
@@ -140,7 +140,7 @@ spec:
               mountPath: {{ printf "%s/%s" .Values.postgresql.persistence.mountPath "conf/postgresql.conf" | quote }}
               subPath: postgresql.conf
               readOnly: true
-            - name: devShm
+            - name: dev-shm
               mountPath: /dev/shm
             - name: empty-dir
               mountPath: /var/run/postgresql
@@ -148,7 +148,7 @@ spec:
       volumes:
         - name: empty-dir
           emptyDir: {}
-        - name: devShm
+        - name: dev-shm
           emptyDir:
             medium: Memory
             sizeLimit: {{ .Values.postgresql.devShmSize }}

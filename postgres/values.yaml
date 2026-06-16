@@ -53,7 +53,7 @@ postgresql:
     ## default pull policy is 'IfNotPresent' if the tag is not 'latest', otherwise 'Always'
     pullPolicy: ""
   ## @param postgresql.replicaCount This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
-  replicaCount: 1
+  replicas: 1
   ## @param postgresql.containerPort This sets the container port, more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#field-spec-ports
   containerPort: 5432
   ## @param postgresql.headlessWithNotReadyAddresses set postgres headless service into publishNotReadyAddresses mode
