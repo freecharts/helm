@@ -78,6 +78,47 @@ spec:
             - name: empty-dir
               mountPath: /var/run
               subPath: run
+        - name: init-replication
+          image: {{ include "helper.images.image" (dict "imageRoot" .Values.postgresql.image "global" .Values.global "chart" .Chart) }}
+          imagePullPolicy: {{ include "helper.images.pullPolicy" (dict "imageRoot" .Values.postgresql.image "global" .Values.global "chart" .Chart) }}
+          securityContext:
+            runAsUser: 0
+          command:
+            - bash
+          args:
+            - -c
+            - |
+              echo "Initializing replication"
+              ORDINAL="${POD_NAME##*-}"
+              if [ "$ORDINAL" = "0" ]; then
+                  echo "I am the Primary"
+              else
+                  echo "I am a Replica"
+                  until pg_isready -h {{ include "helper.names.fullname" . }}-0.{{ include "helper.names.fullname" . }}-hl; do
+                      echo "Waiting for primary to be ready..."
+                      sleep 5
+                  done
+                  echo "Primary is ready, starting replication..."
+                  FOLDER={{ .Values.postgresql.persistence.mountPath }}
+                  rm -rf $FOLDER/pgdata/*
+                  until pg_basebackup -h {{ include "helper.names.fullname" . }}-0.{{ include "helper.names.fullname" . }}-hl -D $FOLDER/pgdata -U {{ .Values.global.pgDbUser }} -vP --wal-method=stream; do
+                      echo "Waiting for base backup to complete..."
+                      sleep 5
+                  done
+                  chmod 700 $FOLDER/pgdata && \
+                  chown -R {{ .Values.postgresql.containerSecurityContext.runAsUser }}:{{ .Values.postgresql.containerSecurityContext.runAsGroup }} $FOLDER/pgdata
+                  echo "Base backup completed, replication setup is done."
+              fi
+          env:
+            - name: PGDATA
+              value: {{ printf "%s/%s" .Values.postgresql.persistence.mountPath "pgdata" | quote }}
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          volumeMounts:
+            - name: data
+              mountPath: {{ .Values.postgresql.persistence.mountPath }}
       containers:
         - name: {{ include "helper.names.fullname" . }}
           image: {{ include "helper.images.image" (dict "imageRoot" .Values.postgresql.image "global" .Values.global "chart" .Chart) }}
