@@ -20,7 +20,6 @@ spec:
   selector:
     matchLabels: {{- include "helper.labels.selectorLabels" . | nindent 6 }}
       app.kubernetes.io/component: postgresql
-      role: data
   template:
     metadata:
       labels:
@@ -28,6 +27,9 @@ spec:
         app.kubernetes.io/component: postgresql
         role: data
     spec:
+      {{- if .Values.pgpool.enable }}
+      serviceAccountName: {{ include "helper.names.fullname" . }}
+      {{- end }}
       {{- include "helper.images.imagePullSecrets" (dict "imageRoot" .Values.postgresql "global" .Values.global) | nindent 6 }}
       {{- include "helper.pods.renderSecurityContext" (dict "securityContext" .Values.postgresql.podSecurityContext) | nindent 6 }}
       affinity:
@@ -64,6 +66,34 @@ spec:
           args:
             - -c
             - |
+              {{- if .Values.pgpool.enable }}
+              ORDINAL="${POD_NAME##*-}"
+              TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+              NS=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
+              CA=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+
+              if { [ -f "$PGDATA/PG_VERSION" ] && [ ! -f "$PGDATA/standby.signal" ]; } || \
+                 { [ ! -f "$PGDATA/PG_VERSION" ] && [ "$ORDINAL" = "0" ]; } 
+                 then
+                  echo "I am the Primary, then modifying pod labels to role=data-primary"
+                  if wget -qO /dev/null \
+                    --ca-certificate=$CA \
+                    --header="Authorization: Bearer $TOKEN" \
+                    --header="Content-Type: application/strategic-merge-patch+json" \
+                    --method=PATCH --body-data='{"metadata":{"labels":{"role":"data-primary"}}}' \
+                    https://kubernetes.default.svc/api/v1/namespaces/$NS/pods/$POD_NAME
+                  then
+                      echo "Pod labels modified successfully"
+                  else
+                      echo "Failed to modify pod labels"  
+                  fi
+              fi
+              {{- end }}
+              if [ -f "$PGDATA/PG_VERSION" ]; then
+                  echo "Already initialized, skipping folder structure creation"
+                  exit 0
+              fi
+
               FOLDER={{ .Values.postgresql.persistence.mountPath }}
               echo "Creating folder $FOLDER structure and setting permissions"
               mkdir -p $FOLDER/pgdata $FOLDER/conf && \
@@ -72,12 +102,20 @@ spec:
               mkdir -p /var/run/postgresql && \
               chmod 777 /var/run/postgresql && \
               chown -R {{ .Values.postgresql.containerSecurityContext.runAsUser }}:{{ .Values.postgresql.containerSecurityContext.runAsGroup }} /var/run/postgresql
+          env:
+            - name: PGDATA
+              value: {{ printf "%s/%s" .Values.postgresql.persistence.mountPath "pgdata" | quote }}
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
           volumeMounts:
             - name: data
               mountPath: {{ .Values.postgresql.persistence.mountPath }}
             - name: empty-dir
               mountPath: /var/run
               subPath: run
+        {{- if .Values.pgpool.enable }}
         - name: init-replication
           image: {{ include "helper.images.image" (dict "imageRoot" .Values.postgresql.image "global" .Values.global "chart" .Chart) }}
           imagePullPolicy: {{ include "helper.images.pullPolicy" (dict "imageRoot" .Values.postgresql.image "global" .Values.global "chart" .Chart) }}
@@ -89,31 +127,36 @@ spec:
             - -c
             - |
               if [ -f "$PGDATA/PG_VERSION" ]; then
-                  echo "Already initialized"
+                  echo "Already initialized, skipping replication setup"
                   exit 0
               fi
+
               echo "Initializing replication"
               ORDINAL="${POD_NAME##*-}"
-              if [ "$ORDINAL" = "0" ]; then
+              if [ "$ORDINAL" = "0" ];  then
                   echo "I am the Primary"
-              else
-                  echo "I am a Replica"
-                  until pg_isready -h {{ include "helper.names.fullname" . }}-0.{{ include "helper.names.fullname" . }}-hl; do
-                      echo "Waiting for primary to be ready..."
-                      sleep 5
-                  done
-                  echo "Primary is ready, starting replication..."
-                  FOLDER={{ .Values.postgresql.persistence.mountPath }}
-                  until pg_basebackup -h {{ include "helper.names.fullname" . }}-0.{{ include "helper.names.fullname" . }}-hl \
-                    -D $FOLDER/pgdata -U {{ .Values.global.pgDbUser }} -vPR \
-                    --wal-method=stream; do
-                      echo "Waiting for base backup to complete..."
-                      sleep 5
-                  done
-                  chmod 700 $FOLDER/pgdata && \
-                  chown -R {{ .Values.postgresql.containerSecurityContext.runAsUser }}:{{ .Values.postgresql.containerSecurityContext.runAsGroup }} $FOLDER/pgdata
-                  echo "Base backup completed, replication setup is done."
+                  exit 0
               fi
+
+              echo "I am a Replica"
+              PRIMARY={{ printf "%s-primary" (include "helper.names.fullname" .) }}.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local
+              echo "Waiting for primary to be ready..."
+              until pg_isready -h $PRIMARY; do
+                  echo "Waiting for primary to be ready..."
+                  sleep 5
+              done
+              echo "Primary is ready, starting replication..."
+              FOLDER={{ .Values.postgresql.persistence.mountPath }}
+              until pg_basebackup -h $PRIMARY \
+                -D $FOLDER/pgdata -U {{ .Values.global.pgDbUser }} -vPR \
+                --wal-method=stream; 
+                do
+                  echo "Base backup failed, retrying..."
+                  sleep 5
+              done
+              chmod 700 $FOLDER/pgdata && \
+              chown -R {{ .Values.postgresql.containerSecurityContext.runAsUser }}:{{ .Values.postgresql.containerSecurityContext.runAsGroup }} $FOLDER/pgdata
+              echo "Base backup completed, replication setup is done."
           env:
             - name: PGDATA
               value: {{ printf "%s/%s" .Values.postgresql.persistence.mountPath "pgdata" | quote }}
@@ -121,13 +164,10 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
-            - name: POD_ROLE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.labels['role']
           volumeMounts:
             - name: data
               mountPath: {{ .Values.postgresql.persistence.mountPath }}
+        {{- end }}
       containers:
         - name: {{ include "helper.names.fullname" . }}
           image: {{ include "helper.images.image" (dict "imageRoot" .Values.postgresql.image "global" .Values.global "chart" .Chart) }}
@@ -143,7 +183,7 @@ spec:
           {{- end }}
           env:
             - name: TZ
-              value: {{ .Values.postgresql.timezone }}
+              value: {{ .Values.global.timezone }}
             - name: PGDATA
               value: {{ printf "%s/%s" .Values.postgresql.persistence.mountPath "pgdata" | quote }}
             - name: POSTGRES_DB

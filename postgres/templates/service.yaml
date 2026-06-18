@@ -11,13 +11,11 @@ metadata:
   labels:
     {{- include "helper.labels.labels" . | nindent 4 }}
     app.kubernetes.io/component: postgresql
-    role: data
 spec:
   type: ClusterIP
   selector:
     {{- include "helper.labels.selectorLabels" . | nindent 4 }}
     app.kubernetes.io/component: postgresql
-    role: data
   ports:
     - name: {{ .Values.service.portName }}
       port: {{ .Values.service.port }}
