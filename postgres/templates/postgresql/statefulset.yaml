@@ -88,6 +88,10 @@ spec:
           args:
             - -c
             - |
+              if [ -f "$PGDATA/PG_VERSION" ]; then
+                  echo "Already initialized"
+                  exit 0
+              fi
               echo "Initializing replication"
               ORDINAL="${POD_NAME##*-}"
               if [ "$ORDINAL" = "0" ]; then
@@ -100,8 +104,9 @@ spec:
                   done
                   echo "Primary is ready, starting replication..."
                   FOLDER={{ .Values.postgresql.persistence.mountPath }}
-                  rm -rf $FOLDER/pgdata/*
-                  until pg_basebackup -h {{ include "helper.names.fullname" . }}-0.{{ include "helper.names.fullname" . }}-hl -D $FOLDER/pgdata -U {{ .Values.global.pgDbUser }} -vP --wal-method=stream; do
+                  until pg_basebackup -h {{ include "helper.names.fullname" . }}-0.{{ include "helper.names.fullname" . }}-hl \
+                    -D $FOLDER/pgdata -U {{ .Values.global.pgDbUser }} -vPR \
+                    --wal-method=stream; do
                       echo "Waiting for base backup to complete..."
                       sleep 5
                   done
@@ -116,6 +121,10 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
+            - name: POD_ROLE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['role']
           volumeMounts:
             - name: data
               mountPath: {{ .Values.postgresql.persistence.mountPath }}
