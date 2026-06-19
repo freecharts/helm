@@ -28,7 +28,7 @@ spec:
         role: data
     spec:
       {{- if .Values.pgpool.enable }}
-      serviceAccountName: {{ include "helper.names.fullname" . }}
+      serviceAccountName: {{ include "postgres.serviceAccountName" . }}
       {{- end }}
       {{- include "helper.images.imagePullSecrets" (dict "imageRoot" .Values.postgresql "global" .Values.global) | nindent 6 }}
       {{- include "helper.pods.renderSecurityContext" (dict "securityContext" .Values.postgresql.podSecurityContext) | nindent 6 }}

@@ -3,11 +3,11 @@
 # SPDX-License-Identifier: MIT License
 */}}
 
-{{- if .Values.pgpool.enabled -}}
+{{- if .Values.pgpool.enable -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "helper.names.fullname" . }}
+  name: {{ include "postgres.pgpoolName" . }}
   namespace: {{ include "helper.names.namespace" . }}
   labels:
     {{- include "helper.labels.labels" . | nindent 4 }}
@@ -18,7 +18,6 @@ spec:
     matchLabels:
       {{- include "helper.labels.selectorLabels" . | nindent 6 }}
       app.kubernetes.io/component: pgpool
-      role: pool
   template:
     metadata:
       labels:
@@ -26,13 +25,13 @@ spec:
         app.kubernetes.io/component: pgpool
         role: pool
     spec:
-      serviceAccountName: {{ include "helper.names.fullname" . }}
+      serviceAccountName: {{ include "postgres.serviceAccountName" . }}
       containers:
         - name: {{ .Chart.Name }}-pgpool
           image: {{ include "helper.images.image" (dict "imageRoot" .Values.pgpool.image "global" .Values.global) }}
           imagePullPolicy: {{ .Values.pgpool.image.pullPolicy }}
           ports:
-            - name: pgpool
+            - name: pgpool-pg
               containerPort: {{ .Values.pgpool.containerPort }}
           {{- if .Values.pgpool.diagnosticModeEnabled }}
           command: {{- include "helper.values.render" (dict "value" .Values.diagnosticMode.command "context" $) | nindent 12 }}
@@ -41,4 +40,9 @@ spec:
           env:
             - name: TZ
               value: {{ .Values.global.timezone }}
+            - name: PGPOOL_BACKEND_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "helper.names.fullname" . }}
+                  key: POSTGRES_PASSWORD
 {{- end -}}

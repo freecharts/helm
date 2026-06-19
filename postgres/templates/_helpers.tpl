@@ -13,3 +13,10 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{/*
+Create the name of the pgpool
+*/}}
+{{- define "postgres.pgpoolName" -}}
+{{- printf "%s-%s" .Release.Name "pgpool" | trunc 63 | trimSuffix "-" -}}
+{{- end }}
