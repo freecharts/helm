@@ -87,6 +87,14 @@ spec:
                   else
                       echo "Failed to modify pod labels"  
                   fi
+              else
+                PRIMARY={{ printf "%s-primary" (include "helper.names.fullname" .) }}.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local
+                echo "Waiting for primary to be ready..."
+                until pg_isready -h $PRIMARY; do
+                    echo "Waiting for primary to be ready..."
+                    sleep 5
+                done
+                echo "Primary is ready..."
               fi
               {{- end }}
               if [ -f "$PGDATA/PG_VERSION" ]; then
@@ -138,14 +146,8 @@ spec:
                   exit 0
               fi
 
-              echo "I am a Replica"
+              echo "I am a Replica, starting replication..."
               PRIMARY={{ printf "%s-primary" (include "helper.names.fullname" .) }}.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local
-              echo "Waiting for primary to be ready..."
-              until pg_isready -h $PRIMARY; do
-                  echo "Waiting for primary to be ready..."
-                  sleep 5
-              done
-              echo "Primary is ready, starting replication..."
               FOLDER={{ .Values.postgresql.persistence.mountPath }}
               until pg_basebackup -h $PRIMARY \
                 -D $FOLDER/pgdata -U {{ .Values.global.pgDbUser }} -vPR \
