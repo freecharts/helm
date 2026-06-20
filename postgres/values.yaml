@@ -213,12 +213,22 @@ pgpool:
   enable: false
   ## @param pgpool.diagnosticModeEnabled This set diagnostic mode for PostgreSQL deployment, more information can be found here: https://kubernetes.io/docs/tasks/debug-application-cluster/debug-running-pod/#ephemeral-debug-containers
   diagnosticModeEnabled: false
+  ## @param pgpool.imagePullSecrets this set image pull secrets for both init and main container, more information can be found here: https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod
+  imagePullSecrets: []
+  ## @param pgpool.initImage This sets the container init image more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
+  initImage:
+    registry: "ghcr.io/freecharts"
+    repository: "fcutils"
+    tag: "1.0.0"
+    digest: ""
+    pullPolicy: ""
   ## This sets the container image, more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
   image:
     registry: "ghcr.io/freecharts"
     repository: "pgpool"
-    tag: "4.6.1-2-3"
-    pullPolicy: IfNotPresent
+    tag: "4.6.1-2.3"
+    digest: ""
+    pullPolicy: ""
   ## @param pgpool.containerPort This sets the container port, more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#field-spec-ports
   containerPort: 5432
 

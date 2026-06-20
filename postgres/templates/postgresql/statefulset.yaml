@@ -88,7 +88,7 @@ spec:
                       echo "Failed to modify pod labels"  
                   fi
               else
-                PRIMARY={{ printf "%s-primary" (include "helper.names.fullname" .) }}.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local
+                PRIMARY={{ include "postgres.primaryName" .}}.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local
                 echo "Waiting for primary to be ready..."
                 until pg_isready -h $PRIMARY; do
                     echo "Waiting for primary to be ready..."
@@ -112,7 +112,7 @@ spec:
               chown -R {{ .Values.postgresql.containerSecurityContext.runAsUser }}:{{ .Values.postgresql.containerSecurityContext.runAsGroup }} /var/run/postgresql
           env:
             - name: PGDATA
-              value: {{ printf "%s/%s" .Values.postgresql.persistence.mountPath "pgdata" | quote }}
+              value: {{ printf "%s/pgdata" .Values.postgresql.persistence.mountPath | quote }}
             - name: POD_NAME
               valueFrom:
                 fieldRef:
@@ -147,7 +147,7 @@ spec:
               fi
 
               echo "I am a Replica, starting replication..."
-              PRIMARY={{ printf "%s-primary" (include "helper.names.fullname" .) }}.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local
+              PRIMARY={{ include "postgres.primaryName" .}}.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local
               FOLDER={{ .Values.postgresql.persistence.mountPath }}
               until pg_basebackup -h $PRIMARY \
                 -D $FOLDER/pgdata -U {{ .Values.global.pgDbUser }} -vPR \
@@ -161,7 +161,7 @@ spec:
               echo "Base backup completed, replication setup is done."
           env:
             - name: PGDATA
-              value: {{ printf "%s/%s" .Values.postgresql.persistence.mountPath "pgdata" | quote }}
+              value: {{ printf "%s/pgdata" .Values.postgresql.persistence.mountPath | quote }}
             - name: POD_NAME
               valueFrom:
                 fieldRef:
@@ -187,7 +187,7 @@ spec:
             - name: TZ
               value: {{ .Values.global.timezone }}
             - name: PGDATA
-              value: {{ printf "%s/%s" .Values.postgresql.persistence.mountPath "pgdata" | quote }}
+              value: {{ printf "%s/pgdata" .Values.postgresql.persistence.mountPath | quote }}
             - name: POSTGRES_DB
               value: {{ .Values.global.pgDbName }}
             - name: POSTGRES_USER
@@ -199,8 +199,8 @@ spec:
                   key: POSTGRES_PASSWORD
             - name: POSTGRES_INITDB_ARGS
               value: >-
-                -c include_if_exists={{ printf "%s/%s" .Values.postgresql.persistence.mountPath "conf/postgresql.conf" | quote }}
-                -c hba_file={{ printf "%s/%s" .Values.postgresql.persistence.mountPath "conf/pg_hba.conf" | quote }}
+                -c include_if_exists={{ printf "%s/conf/postgresql.conf" .Values.postgresql.persistence.mountPath | quote }}
+                -c hba_file={{ printf "%s/conf/pg_hba.conf" .Values.postgresql.persistence.mountPath | quote }}
           {{- if not .Values.postgresql.diagnosticModeEnabled }}
           startupProbe: {{- include "helper.values.render" ( dict "value" .Values.postgresql.startupProbe "context" $ ) | nindent 12 }}
             exec:
@@ -225,11 +225,11 @@ spec:
               mountPath: {{ .Values.postgresql.persistence.mountPath }}
               subPath:  {{ .Values.postgresql.persistence.subPath | default "" }}
             - name: config
-              mountPath: {{ .Values.postgresql.persistence.mountPath }}/conf/pg_hba.conf
+              mountPath: {{ printf "%s/conf/pg_hba.conf" .Values.postgresql.persistence.mountPath }}
               subPath: pg_hba.conf
               readOnly: true
             - name: config
-              mountPath: {{ printf "%s/%s" .Values.postgresql.persistence.mountPath "conf/postgresql.conf" | quote }}
+              mountPath: {{ printf "%s/conf/postgresql.conf" .Values.postgresql.persistence.mountPath }}
               subPath: postgresql.conf
               readOnly: true
             - name: dev-shm
@@ -255,7 +255,6 @@ spec:
         labels:
           {{- include "helper.labels.labels" . | nindent 10 }}
           app.kubernetes.io/component: postgresql
-          role: data
       spec:
         accessModes: [ "ReadWriteOnce" ]
         resources:

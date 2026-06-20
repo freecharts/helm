@@ -26,10 +26,28 @@ spec:
         role: pool
     spec:
       serviceAccountName: {{ include "postgres.serviceAccountName" . }}
+      initContainers:
+        - name: waiting-on-primary
+          image: {{ include "helper.images.image" (dict "imageRoot" .Values.postgresql.initImage "global" .Values.global) }}
+          imagePullPolicy: {{ include "helper.images.pullPolicy" (dict "imageRoot" .Values.postgresql.initImage "global" .Values.global) }}
+          securityContext:
+            runAsUser: 0
+          command:
+            - sh
+          args:
+            - -c
+            - |
+              PRIMARY={{ include "postgres.primaryName" .}}.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local
+              echo "Waiting for primary to be ready..."
+              until pg_isready -h $PRIMARY; do
+                  echo "Waiting for primary to be ready..."
+                  sleep 5
+              done
+              echo "Primary is ready..."
       containers:
         - name: {{ .Chart.Name }}-pgpool
           image: {{ include "helper.images.image" (dict "imageRoot" .Values.pgpool.image "global" .Values.global) }}
-          imagePullPolicy: {{ .Values.pgpool.image.pullPolicy }}
+          imagePullPolicy: {{ include "helper.images.pullPolicy" (dict "imageRoot" .Values.pgpool.image "global" .Values.global) }}
           ports:
             - name: pgpool-pg
               containerPort: {{ .Values.pgpool.containerPort }}

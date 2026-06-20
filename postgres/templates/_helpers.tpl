@@ -15,8 +15,15 @@ Create the name of the service account to use
 {{- end }}
 
 {{/*
+Create the name of the primary service
+*/}}
+{{- define "postgres.primaryName" -}}
+{{- printf "%s-primary" (include "helper.names.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- end }}
+
+{{/*
 Create the name of the pgpool
 */}}
 {{- define "postgres.pgpoolName" -}}
-{{- printf "%s-%s" .Release.Name "pgpool" | trunc 63 | trimSuffix "-" -}}
+{{- printf "%s-pgpool" .Release.Name | trunc 63 | trimSuffix "-" -}}
 {{- end }}
