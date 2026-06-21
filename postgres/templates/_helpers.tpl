@@ -22,6 +22,13 @@ Create the name of the primary service
 {{- end }}
 
 {{/*
+Create the name of the headless service
+*/}}
+{{- define "postgres.headlessName" -}}
+{{- printf "%s-hl" (include "helper.names.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- end }}
+
+{{/*
 Create the name of the pgpool
 */}}
 {{- define "postgres.pgpoolName" -}}

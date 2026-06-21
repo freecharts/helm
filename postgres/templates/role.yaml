@@ -21,4 +21,12 @@ rules:
       - list
       - watch
       - patch
+  - apiGroups:
+      - ""
+    resources:
+      - endpoints
+    verbs:
+      - get
+      - list
+      - watch
 {{- end -}}
