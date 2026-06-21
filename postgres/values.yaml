@@ -229,6 +229,13 @@ pgpool:
     tag: "4.6.1-2.3"
     digest: ""
     pullPolicy: ""
+  ## @param pgpool.watcherImage This sets the container watcher image more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
+  watcherImage:
+    registry: "ghcr.io/freecharts"
+    repository: "fcutils"
+    tag: "1.0.0"
+    digest: ""
+    pullPolicy: ""
   ## @param pgpool.containerPort This sets the container port, more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#field-spec-ports
   containerPort: 5432
   ## @param pgpool.podSecurityContext Security context for PostgreSQL pods, 

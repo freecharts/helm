@@ -25,6 +25,7 @@ rules:
       - ""
     resources:
       - endpoints
+      - endpointslices
     verbs:
       - get
       - list
