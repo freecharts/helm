@@ -43,7 +43,7 @@ data:
     # From config map
     # Connection settings
     listen_addresses = '*'
-    port = 5432
+    port = {{ .Values.pgpool.containerPort }}
     pcp_listen_addresses = '*'
     pcp_port = 9898
     unix_socket_directories = '/opt/pgpool/run'

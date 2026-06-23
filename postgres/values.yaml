@@ -232,10 +232,16 @@ pgpool:
   ## @param pgpool.watcherImage This sets the container watcher image more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
   watcherImage:
     registry: "ghcr.io/freecharts"
-    repository: "fcutils"
-    tag: "1.0.0"
+    repository: "pgpool"
+    tag: "4.6.1-2.3"
     digest: ""
     pullPolicy: ""
+  ## @param pgpool.maxBackendNodes This will set the maximum replicaset exoected count in pg cluster.
+  maxBackendNodes: 10
+  ## @param pgpool.pgPoolUser This sets the pgpool user, more information can be found here: https://www.pgpool.net/docs/latest/en/html/configuring-pcp-conf.html
+  pgPoolUser: "pgpool"
+  ## @param pgpool.pgPoolPassword This sets the pgpool password, more information can be found here: https://www.pgpool.net/docs/latest/en/html/configuring-pcp-conf.html
+  pgPoolPassword: "change_me"
   ## @param pgpool.containerPort This sets the container port, more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#field-spec-ports
   containerPort: 5432
   ## @param pgpool.podSecurityContext Security context for PostgreSQL pods, 
