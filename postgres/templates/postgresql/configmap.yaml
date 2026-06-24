@@ -59,6 +59,8 @@ data:
     # Replication settings
     backend_clustering_mode = 'streaming_replication'
     load_balance_mode = on
+    statement_level_load_balance = off
+    disable_load_balance_on_write = 'transaction'
     sr_check_user = 'postgres'
     sr_check_password = 'postgres'
     sr_check_database = 'postgres'
