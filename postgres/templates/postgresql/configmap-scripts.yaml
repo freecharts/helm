@@ -1,0 +1,98 @@
+{{/*
+# Copyright FreeCharts.
+# SPDX-License-Identifier: MIT License
+*/}}
+
+{{- if .Values.pgpool.enable -}}
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "helper.names.fullname" . }}-scripts
+  namespace: {{ include "helper.names.namespace" . | quote }}
+  labels: 
+    {{- include "helper.labels.labels" . | nindent 4 }}
+    app.kubernetes.io/component: pgpool
+data:
+  failover.sh: |
+    #!/bin/bash
+    set -euo pipefail
+
+    # This script is called by pgpool-II when a backend node is detected as down.
+    # It is responsible for promoting a standby server to primary and updating the pgpool configuration.
+    
+    if [ $3 -eq $5 ]; then
+        exit 0
+    fi
+
+    echo "Starting failover process..."
+    FAILED_NODE_ID=$1
+    FAILED_HOST=$2
+    NEW_MAIN_NODE_ID=$3
+    NEW_MAIN_HOST=$4
+    OLD_MAIN_NODE_ID=$5
+    OLD_PRIMARY_NODE_ID=$6
+    OLD_PRIMARY_HOST=$7
+
+    NEW_PRIMARY_POD_NAME="{{ include "helper.names.fullname" . }}-$NEW_MAIN_NODE_ID"
+    OLD_PRIMARY_POD_NAME="{{ include "helper.names.fullname" . }}-$OLD_PRIMARY_NODE_ID"
+
+    echo "[FAILOVER] Failed node: $FAILED_NODE_ID ($FAILED_HOST)"
+    echo "[FAILOVER] New main node: $NEW_MAIN_NODE_ID ($NEW_MAIN_HOST)"
+    echo "[FAILOVER] Old primary node: $OLD_PRIMARY_NODE_ID ($OLD_PRIMARY_HOST)"
+
+    #
+    # No new primary node available, exit gracefully
+    #
+    if [ "$NEW_MAIN_NODE_ID" -eq -1 ]; then
+        echo "[FAILOVER] No new main node available"
+        exit 0
+    fi
+
+    echo "[FAILOVER] Promoting pod $NEW_PRIMARY_POD_NAME"
+
+    #
+    # Promotion
+    #
+    psql -h $NEW_MAIN_HOST -U postgres -d postgres \
+          -c "SELECT pg_promote();"
+
+    #
+    # Wait for promotion to complete
+    #
+    for i in $(seq 1 30); do
+        RECOVERY=$(psql -h $NEW_MAIN_HOST -U postgres -d postgres -tAc \
+              "SELECT pg_is_in_recovery();")
+
+        if [ "$RECOVERY" = "f" ]; then
+            echo "[FAILOVER] Promotion completed"
+            TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+            NS=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
+            CA=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+            API=https://kubernetes.default.svc/api/v1/namespaces/$NS/pods
+
+            echo "Removing role label from old primary pod ($OLD_PRIMARY_POD_NAME)..."
+            wget -qO /dev/null \
+              --ca-certificate=$CA \
+              --header="Authorization: Bearer $TOKEN" \
+              --header="Content-Type: application/strategic-merge-patch+json" \
+              --method=PATCH --body-data='{"metadata":{"labels":{"role":"data"}}}' \
+              "$API/$OLD_PRIMARY_POD_NAME"
+
+            echo "Adding role label to new primary pod ($NEW_PRIMARY_POD_NAME)..."
+            wget -qO /dev/null \
+              --ca-certificate=$CA \
+              --header="Authorization: Bearer $TOKEN" \
+              --header="Content-Type: application/strategic-merge-patch+json" \
+              --method=PATCH --body-data='{"metadata":{"labels":{"role":"data-primary"}}}' \
+              "$API/$NEW_PRIMARY_POD_NAME"
+            exit 0
+        fi
+
+        echo "[FAILOVER] Waiting for promotion..."
+        sleep 1
+    done
+
+    echo "[FAILOVER] Promotion timeout"
+    exit 1
+{{- end -}}

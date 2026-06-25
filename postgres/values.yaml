@@ -226,14 +226,7 @@ pgpool:
   image:
     registry: "ghcr.io/freecharts"
     repository: "pgpool"
-    tag: "4.6.1-2.3"
-    digest: ""
-    pullPolicy: ""
-  ## @param pgpool.watcherImage This sets the container watcher image more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
-  watcherImage:
-    registry: "ghcr.io/freecharts"
-    repository: "pgpool"
-    tag: "4.6.1-2.3"
+    tag: "4.6.1-2.4"
     digest: ""
     pullPolicy: ""
   ## @param pgpool.maxBackendNodes This will set the maximum replicaset exoected count in pg cluster.

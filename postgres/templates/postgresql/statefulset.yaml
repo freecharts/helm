@@ -71,9 +71,18 @@ spec:
               TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
               NS=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
               CA=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+              API=https://kubernetes.default.svc/api/v1/namespaces/$NS/pods
+
+              PRIMARY_EXISTS=$(
+                wget -qO- \
+                  --ca-certificate="$CA" \
+                  --header="Authorization: Bearer $TOKEN" \
+                  "$API?labelSelector=postgres-role%3Dprimary" \
+                | jq -r '.items | length'
+              )
 
               if { [ -f "$PGDATA/PG_VERSION" ] && [ ! -f "$PGDATA/standby.signal" ]; } || \
-                 { [ ! -f "$PGDATA/PG_VERSION" ] && [ "$ORDINAL" = "0" ]; } 
+                 { [ ! -f "$PGDATA/PG_VERSION" ] && [ "$ORDINAL" = "0" ] && [ "$PRIMARY_EXISTS" = "0" ]; } 
                  then
                   echo "I am the Primary, then modifying pod labels to role=data-primary"
                   if wget -qO /dev/null \
@@ -81,7 +90,7 @@ spec:
                     --header="Authorization: Bearer $TOKEN" \
                     --header="Content-Type: application/strategic-merge-patch+json" \
                     --method=PATCH --body-data='{"metadata":{"labels":{"role":"data-primary"}}}' \
-                    https://kubernetes.default.svc/api/v1/namespaces/$NS/pods/$POD_NAME
+                    "$API/$POD_NAME"
                   then
                       echo "Pod labels modified successfully"
                   else

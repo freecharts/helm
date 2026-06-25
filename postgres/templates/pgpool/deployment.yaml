@@ -112,15 +112,23 @@ spec:
                 secretKeyRef:
                   name: {{ include "helper.names.fullname" . }}
                   key: POSTGRES_PASSWORD
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "helper.names.fullname" . }}
+                  key: POSTGRES_PASSWORD
           volumeMounts:
             - name: data
               mountPath: /opt/pgpool
             - name: config
               mountPath: /opt/pgpool/conf/pgpool.conf
               subPath: pgpool.conf
+            - name: scripts
+              mountPath: /opt/pgpool/failover.sh
+              subPath: failover.sh
         - name: {{ include "postgres.pgpoolName" . }}-watcher
-          image: {{ include "helper.images.image" (dict "imageRoot" .Values.pgpool.watcherImage "global" .Values.global) }}
-          imagePullPolicy: {{ include "helper.images.pullPolicy" (dict "imageRoot" .Values.pgpool.watcherImage "global" .Values.global) }}
+          image: {{ include "helper.images.image" (dict "imageRoot" .Values.pgpool.image "global" .Values.global) }}
+          imagePullPolicy: {{ include "helper.images.pullPolicy" (dict "imageRoot" .Values.pgpool.image "global" .Values.global) }}
           {{- include "helper.pods.renderSecurityContext" (dict "securityContext" .Values.pgpool.containerSecurityContext) | nindent 10 }}
           env:
             - name: TZ
@@ -194,4 +202,8 @@ spec:
         - name: config
           configMap:
             name: {{ include "helper.names.fullname" . }}
+        - name: scripts
+          configMap:
+            name: {{ include "helper.names.fullname" . }}-scripts
+            defaultMode: 0755
 {{- end -}}

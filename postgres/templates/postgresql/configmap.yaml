@@ -39,6 +39,7 @@ data:
     host    replication     all             all                     trust
     host    all             all             all                     scram-sha-256
   {{- end }}
+  {{- if .Values.pgpool.enable }}
   pgpool.conf: |-
     # From config map
     # Connection settings
@@ -65,11 +66,13 @@ data:
     sr_check_password = 'postgres'
     sr_check_database = 'postgres'
     include '/opt/pgpool/conf/backends.conf'
+    failover_command = '/opt/pgpool/failover.sh %d %h %m %H %M %P %N'
     # Healt check settings
     health_check_user = 'postgres'
     health_check_password = 'postgres'
     health_check_period = 10
     health_check_timeout = 20
     health_check_max_retries = 0
+  {{- end }}
     
     
