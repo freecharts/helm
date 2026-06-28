@@ -65,6 +65,7 @@ data:
     sr_check_user = 'postgres'
     sr_check_password = 'postgres'
     sr_check_database = 'postgres'
+    sr_check_period = 10
     include '/opt/pgpool/conf/backends.conf'
     failover_command = '/opt/pgpool/failover.sh %d %h %m %H %M %P %N'
     # Healt check settings

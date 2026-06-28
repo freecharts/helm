@@ -21,7 +21,7 @@ data:
     # This script is called by pgpool-II when a backend node is detected as down.
     # It is responsible for promoting a standby server to primary and updating the pgpool configuration.
     
-    if [ $3 -eq $5 ]; then
+    if [ $1 -ne $6 ]; then
         exit 0
     fi
 
@@ -71,7 +71,7 @@ data:
             CA=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
             API=https://kubernetes.default.svc/api/v1/namespaces/$NS/pods
 
-            echo "Removing role label from old primary pod ($OLD_PRIMARY_POD_NAME)..."
+            echo "[FAILOVER] Removing role label from old primary pod ($OLD_PRIMARY_POD_NAME)..."
             wget -qO /dev/null \
               --ca-certificate=$CA \
               --header="Authorization: Bearer $TOKEN" \
@@ -79,7 +79,7 @@ data:
               --method=PATCH --body-data='{"metadata":{"labels":{"role":"data"}}}' \
               "$API/$OLD_PRIMARY_POD_NAME"
 
-            echo "Adding role label to new primary pod ($NEW_PRIMARY_POD_NAME)..."
+            echo "[FAILOVER] Adding role label to new primary pod ($NEW_PRIMARY_POD_NAME)..."
             wget -qO /dev/null \
               --ca-certificate=$CA \
               --header="Authorization: Bearer $TOKEN" \

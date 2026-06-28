@@ -84,6 +84,13 @@ spec:
                 fi
               done
 
+              # pod is a primary and other pods are ready then cleanup pgdata folder and reinitialize it
+              if { [ -f "$PGDATA/PG_VERSION" ] && [ ! -f "$PGDATA/standby.signal" ] && [ "$POD_EXISTS" = "1" ]; } then
+                rm -rf $PGDATA/*
+                echo "Primary pod detected and other pods are ready, cleaning up pgdata folder and reinitializing it"
+                exit 0
+              fi
+
               if { [ -f "$PGDATA/PG_VERSION" ] && [ ! -f "$PGDATA/standby.signal" ]; } || \
                  { [ ! -f "$PGDATA/PG_VERSION" ] && [ "$ORDINAL" = "0" ] && [ "$POD_EXISTS" = "0" ]; } 
                  then
@@ -155,7 +162,7 @@ spec:
               ROLE=$(cat {{ .Values.postgresql.persistence.mountPath }}/bootstrap-role)
               
               if [ "$ROLE" = "data-primary" ]; then
-                echo "I am the Primary"
+                echo "I am the Primary then skipping replication setup"
                 exit 0
               fi
 
