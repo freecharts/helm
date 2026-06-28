@@ -73,16 +73,19 @@ spec:
               CA=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
               API=https://kubernetes.default.svc/api/v1/namespaces/$NS/pods
 
-              PRIMARY_EXISTS=$(
-                wget -qO- \
-                  --ca-certificate="$CA" \
-                  --header="Authorization: Bearer $TOKEN" \
-                  "$API?labelSelector=postgres-role%3Dprimary" \
-                | jq -r '.items | length'
-              )
+              SERVICE="{{ include "postgres.headlessName" . }}.$NS.svc.cluster.local"
+              IPS=$(nslookup "$SERVICE" 2>/dev/null | awk '/^Address: / {print $2}')
+              POD_EXISTS=0
+              echo "data" > {{ .Values.postgresql.persistence.mountPath }}/bootstrap-role
+
+              for ip in $IPS; do
+                if pg_isready -h "$ip" -p 5432 >/dev/null 2>&1; then
+                  POD_EXISTS=1
+                fi
+              done
 
               if { [ -f "$PGDATA/PG_VERSION" ] && [ ! -f "$PGDATA/standby.signal" ]; } || \
-                 { [ ! -f "$PGDATA/PG_VERSION" ] && [ "$ORDINAL" = "0" ] && [ "$PRIMARY_EXISTS" = "0" ]; } 
+                 { [ ! -f "$PGDATA/PG_VERSION" ] && [ "$ORDINAL" = "0" ] && [ "$POD_EXISTS" = "0" ]; } 
                  then
                   echo "I am the Primary, then modifying pod labels to role=data-primary"
                   if wget -qO /dev/null \
@@ -92,23 +95,24 @@ spec:
                     --method=PATCH --body-data='{"metadata":{"labels":{"role":"data-primary"}}}' \
                     "$API/$POD_NAME"
                   then
-                      echo "Pod labels modified successfully"
+                    echo "data-primary" > {{ .Values.postgresql.persistence.mountPath }}/bootstrap-role
+                    echo "Pod labels modified successfully"
                   else
-                      echo "Failed to modify pod labels"  
+                    echo "Failed to modify pod labels"  
                   fi
               else
                 PRIMARY={{ include "postgres.primaryName" .}}.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local
                 echo "Waiting for primary to be ready..."
                 until pg_isready -h $PRIMARY; do
-                    echo "Waiting for primary to be ready..."
-                    sleep 5
+                  echo "Waiting for primary to be ready..."
+                  sleep 5
                 done
                 echo "Primary is ready..."
               fi
               {{- end }}
               if [ -f "$PGDATA/PG_VERSION" ]; then
-                  echo "Already initialized, skipping folder structure creation"
-                  exit 0
+                echo "Already initialized, skipping folder structure creation"
+                exit 0
               fi
 
               FOLDER={{ .Values.postgresql.persistence.mountPath }}
@@ -148,11 +152,11 @@ spec:
                   exit 0
               fi
 
-              echo "Initializing replication"
-              ORDINAL="${POD_NAME##*-}"
-              if [ "$ORDINAL" = "0" ];  then
-                  echo "I am the Primary"
-                  exit 0
+              ROLE=$(cat {{ .Values.postgresql.persistence.mountPath }}/bootstrap-role)
+              
+              if [ "$ROLE" = "data-primary" ]; then
+                echo "I am the Primary"
+                exit 0
               fi
 
               echo "I am a Replica, starting replication..."
