@@ -6,19 +6,23 @@ nameOverride: ""
 fullnameOverride: ""
 namespaceOverride: ""
 
-## @param global.imageRegistry Global Docker image registry
-## @param global.imagePullSecrets Global Docker registry secret names as an array
-## @param global.storageClass Global default StorageClass for Persistent Volume(s)
-##
+## @param global Global values that can be accessed from any subchart
 global:
+  ## @param global.imageRegistry Global Docker image registry
   imageRegistry: ""
+  ## @param global.imagePullSecrets Global Docker registry secret names as an array
   imagePullSecrets: []
+  ## @param global.pullPolicy Global Docker image pull policy
   pullPolicy: ""
+  ## @param global.timezone Timezone for PostgreSQL container, more information can be found here: https://www.postgresql.org/docs/current/datetime-config.html#GUC-TIMEZONE
+  timezone: "Europe/Zurich"
+  ## @param global.storageClass Global default StorageClass for Persistent Volume(s)
   storageClass: ""
   defaultStorageClass: ""
   pgDbName: "postgres"
   pgDbUser: "postgres"
   pgDbPassword: "change_me"
+
 ## @param diagnosticMode Diagnostic mode in the deployment
 ##
 diagnosticMode:
@@ -39,9 +43,9 @@ postgresql:
   imagePullSecrets: []
   ## @param postgresql.initImage This sets the container init image more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
   initImage:
-    registry: ""
-    repository: "busybox"
-    tag: "1.34.1"
+    registry: "ghcr.io/freecharts"
+    repository: "fcutils"
+    tag: "1.0.0"
     digest: ""
     pullPolicy: ""
   ## @param postgresql.image This sets the container image more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
@@ -53,7 +57,7 @@ postgresql:
     ## default pull policy is 'IfNotPresent' if the tag is not 'latest', otherwise 'Always'
     pullPolicy: ""
   ## @param postgresql.replicaCount This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
-  replicaCount: 1
+  replicas: 1
   ## @param postgresql.containerPort This sets the container port, more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#field-spec-ports
   containerPort: 5432
   ## @param postgresql.headlessWithNotReadyAddresses set postgres headless service into publishNotReadyAddresses mode
@@ -91,8 +95,6 @@ postgresql:
   ## ref: https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#pod-management-policies
   ##
   podManagementPolicy: Parallel
-  ## @param postgresql.timezone Timezone for PostgreSQL container, more information can be found here: https://www.postgresql.org/docs/current/datetime-config.html#GUC-TIMEZONE
-  timezone: "Europe/Zurich"
   ## You can use this parameter to specify the content for postgresql.conf
   ## Example:
   ## configuration: |-
@@ -207,13 +209,58 @@ postgresql:
 
 ## @param pgpool Default values for pgpool.
 pgpool:
+  ## @param pgpool.enable Enable pgpool
   enable: false
+  ## @param pgpool.diagnosticModeEnabled This set diagnostic mode for PostgreSQL deployment, more information can be found here: https://kubernetes.io/docs/tasks/debug-application-cluster/debug-running-pod/#ephemeral-debug-containers
+  diagnosticModeEnabled: false
+  ## @param pgpool.imagePullSecrets this set image pull secrets for both init and main container, more information can be found here: https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod
+  imagePullSecrets: []
+  ## @param pgpool.initImage This sets the container init image more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
+  initImage:
+    registry: "ghcr.io/freecharts"
+    repository: "fcutils"
+    tag: "1.0.0"
+    digest: ""
+    pullPolicy: ""
   ## This sets the container image, more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
   image:
-    registry: ""
+    registry: "ghcr.io/freecharts"
     repository: "pgpool"
-    tag: "4.7.1"
-    pullPolicy: IfNotPresent
+    tag: "4.6.1-2.4"
+    digest: ""
+    pullPolicy: ""
+  ## @param pgpool.maxBackendNodes This will set the maximum replicaset exoected count in pg cluster.
+  maxBackendNodes: 10
+  ## @param pgpool.pgPoolUser This sets the pgpool user, more information can be found here: https://www.pgpool.net/docs/latest/en/html/configuring-pcp-conf.html
+  pgPoolUser: "pgpool"
+  ## @param pgpool.pgPoolPassword This sets the pgpool password, more information can be found here: https://www.pgpool.net/docs/latest/en/html/configuring-pcp-conf.html
+  pgPoolPassword: "change_me"
+  ## @param pgpool.containerPort This sets the container port, more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#field-spec-ports
+  containerPort: 5432
+  ## @param pgpool.podSecurityContext Security context for PostgreSQL pods, 
+  ## more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
+  podSecurityContext:
+    fsGroupChangePolicy: OnRootMismatch
+    fsGroup: 999
+  ## Container Security Context
+  ## https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
+  ## e.g:
+  ##   containerSecurityContext:
+  ##     capabilities:
+  ##       drop: ["NET_RAW"]
+  ##     readOnlyRootFilesystem: true
+  ##
+  containerSecurityContext:
+    runAsUser: 999
+    runAsGroup: 999
+    runAsNonRoot: true
+    privileged: false
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: ["ALL"]
+    seccompProfile:
+      type: "RuntimeDefault"
 
 ## This is for setting up a service, more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/
 service:
@@ -221,3 +268,8 @@ service:
   ## @param service.port This sets the ports, more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#field-spec-ports
   port: 5432
 
+serviceAccount:
+  ## @param serviceAccount.create Specifies whether a ServiceAccount should be created
+  create: true
+  ## @param serviceAccount.name The name of the ServiceAccount to use.
+  name: ""

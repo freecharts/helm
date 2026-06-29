@@ -10,14 +10,20 @@ metadata:
   namespace: {{ include "helper.names.namespace" . | quote }}
   labels:
     {{- include "helper.labels.labels" . | nindent 4 }}
+    {{- if .Values.pgpool.enable }}
+    app.kubernetes.io/component: pgpool
+    {{- else }}
     app.kubernetes.io/component: postgresql
-    role: data
+    {{- end }}
 spec:
   type: ClusterIP
   selector:
     {{- include "helper.labels.selectorLabels" . | nindent 4 }}
+    {{- if .Values.pgpool.enable }}
+    app.kubernetes.io/component: pgpool
+    {{- else }}
     app.kubernetes.io/component: postgresql
-    role: data
+    {{- end }}
   ports:
     - name: {{ .Values.service.portName }}
       port: {{ .Values.service.port }}

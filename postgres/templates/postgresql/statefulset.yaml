@@ -14,13 +14,12 @@ metadata:
     role: data
 spec:
   serviceName: {{ printf "%s-hl" (include "helper.names.fullname" .) }}
-  replicas: {{ .Values.postgresql.replicaCount }}
+  replicas: {{ .Values.postgresql.replicas }}
   podManagementPolicy: {{ .Values.postgresql.podManagementPolicy | quote }}
   updateStrategy: {{- toYaml .Values.postgresql.updateStrategy | nindent 4 }}
   selector:
     matchLabels: {{- include "helper.labels.selectorLabels" . | nindent 6 }}
       app.kubernetes.io/component: postgresql
-      role: data
   template:
     metadata:
       labels:
@@ -28,6 +27,9 @@ spec:
         app.kubernetes.io/component: postgresql
         role: data
     spec:
+      {{- if .Values.pgpool.enable }}
+      serviceAccountName: {{ include "postgres.serviceAccountName" . }}
+      {{- end }}
       {{- include "helper.images.imagePullSecrets" (dict "imageRoot" .Values.postgresql "global" .Values.global) | nindent 6 }}
       {{- include "helper.pods.renderSecurityContext" (dict "securityContext" .Values.postgresql.podSecurityContext) | nindent 6 }}
       affinity:
@@ -64,6 +66,62 @@ spec:
           args:
             - -c
             - |
+              {{- if .Values.pgpool.enable }}
+              ORDINAL="${POD_NAME##*-}"
+              TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+              NS=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
+              CA=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+              API=https://kubernetes.default.svc/api/v1/namespaces/$NS/pods
+
+              SERVICE="{{ include "postgres.headlessName" . }}.$NS.svc.cluster.local"
+              IPS=$(nslookup "$SERVICE" 2>/dev/null | awk '/^Address: / {print $2}')
+              POD_EXISTS=0
+              echo "data" > {{ .Values.postgresql.persistence.mountPath }}/bootstrap-role
+
+              for ip in $IPS; do
+                if pg_isready -h "$ip" -p 5432 >/dev/null 2>&1; then
+                  POD_EXISTS=1
+                fi
+              done
+
+              # pod is a primary and other pods are ready then cleanup pgdata folder and reinitialize it
+              if { [ -f "$PGDATA/PG_VERSION" ] && [ ! -f "$PGDATA/standby.signal" ] && [ "$POD_EXISTS" = "1" ]; } then
+                rm -rf $PGDATA/*
+                echo "Primary pod detected and other pods are ready, cleaning up pgdata folder and reinitializing it"
+                exit 0
+              fi
+
+              if { [ -f "$PGDATA/PG_VERSION" ] && [ ! -f "$PGDATA/standby.signal" ]; } || \
+                 { [ ! -f "$PGDATA/PG_VERSION" ] && [ "$ORDINAL" = "0" ] && [ "$POD_EXISTS" = "0" ]; } 
+                 then
+                  echo "I am the Primary, then modifying pod labels to role=data-primary"
+                  if wget -qO /dev/null \
+                    --ca-certificate=$CA \
+                    --header="Authorization: Bearer $TOKEN" \
+                    --header="Content-Type: application/strategic-merge-patch+json" \
+                    --method=PATCH --body-data='{"metadata":{"labels":{"role":"data-primary"}}}' \
+                    "$API/$POD_NAME"
+                  then
+                    echo "data-primary" > {{ .Values.postgresql.persistence.mountPath }}/bootstrap-role
+                    echo "Pod labels modified successfully"
+                  else
+                    echo "Failed to modify pod labels"  
+                  fi
+              else
+                PRIMARY={{ include "postgres.primaryName" .}}.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local
+                echo "Waiting for primary to be ready..."
+                until pg_isready -h $PRIMARY; do
+                  echo "Waiting for primary to be ready..."
+                  sleep 5
+                done
+                echo "Primary is ready..."
+              fi
+              {{- end }}
+              if [ -f "$PGDATA/PG_VERSION" ]; then
+                echo "Already initialized, skipping folder structure creation"
+                exit 0
+              fi
+
               FOLDER={{ .Values.postgresql.persistence.mountPath }}
               echo "Creating folder $FOLDER structure and setting permissions"
               mkdir -p $FOLDER/pgdata $FOLDER/conf && \
@@ -72,12 +130,66 @@ spec:
               mkdir -p /var/run/postgresql && \
               chmod 777 /var/run/postgresql && \
               chown -R {{ .Values.postgresql.containerSecurityContext.runAsUser }}:{{ .Values.postgresql.containerSecurityContext.runAsGroup }} /var/run/postgresql
+          env:
+            - name: PGDATA
+              value: {{ printf "%s/pgdata" .Values.postgresql.persistence.mountPath | quote }}
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
           volumeMounts:
             - name: data
               mountPath: {{ .Values.postgresql.persistence.mountPath }}
             - name: empty-dir
               mountPath: /var/run
               subPath: run
+        {{- if .Values.pgpool.enable }}
+        - name: init-replication
+          image: {{ include "helper.images.image" (dict "imageRoot" .Values.postgresql.image "global" .Values.global "chart" .Chart) }}
+          imagePullPolicy: {{ include "helper.images.pullPolicy" (dict "imageRoot" .Values.postgresql.image "global" .Values.global "chart" .Chart) }}
+          securityContext:
+            runAsUser: 0
+          command:
+            - bash
+          args:
+            - -c
+            - |
+              if [ -f "$PGDATA/PG_VERSION" ]; then
+                  echo "Already initialized, skipping replication setup"
+                  exit 0
+              fi
+
+              ROLE=$(cat {{ .Values.postgresql.persistence.mountPath }}/bootstrap-role)
+              
+              if [ "$ROLE" = "data-primary" ]; then
+                echo "I am the Primary then skipping replication setup"
+                exit 0
+              fi
+
+              echo "I am a Replica, starting replication..."
+              PRIMARY={{ include "postgres.primaryName" .}}.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local
+              FOLDER={{ .Values.postgresql.persistence.mountPath }}
+              until pg_basebackup -h $PRIMARY \
+                -D $FOLDER/pgdata -U {{ .Values.global.pgDbUser }} -vPR \
+                --wal-method=stream; 
+                do
+                  echo "Base backup failed, retrying..."
+                  sleep 5
+              done
+              chmod 700 $FOLDER/pgdata && \
+              chown -R {{ .Values.postgresql.containerSecurityContext.runAsUser }}:{{ .Values.postgresql.containerSecurityContext.runAsGroup }} $FOLDER/pgdata
+              echo "Base backup completed, replication setup is done."
+          env:
+            - name: PGDATA
+              value: {{ printf "%s/pgdata" .Values.postgresql.persistence.mountPath | quote }}
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          volumeMounts:
+            - name: data
+              mountPath: {{ .Values.postgresql.persistence.mountPath }}
+        {{- end }}
       containers:
         - name: {{ include "helper.names.fullname" . }}
           image: {{ include "helper.images.image" (dict "imageRoot" .Values.postgresql.image "global" .Values.global "chart" .Chart) }}
@@ -93,9 +205,9 @@ spec:
           {{- end }}
           env:
             - name: TZ
-              value: {{ .Values.postgresql.timezone }}
+              value: {{ .Values.global.timezone }}
             - name: PGDATA
-              value: {{ printf "%s/%s" .Values.postgresql.persistence.mountPath "pgdata" | quote }}
+              value: {{ printf "%s/pgdata" .Values.postgresql.persistence.mountPath | quote }}
             - name: POSTGRES_DB
               value: {{ .Values.global.pgDbName }}
             - name: POSTGRES_USER
@@ -107,8 +219,8 @@ spec:
                   key: POSTGRES_PASSWORD
             - name: POSTGRES_INITDB_ARGS
               value: >-
-                -c include_if_exists={{ printf "%s/%s" .Values.postgresql.persistence.mountPath "conf/postgresql.conf" | quote }}
-                -c hba_file={{ printf "%s/%s" .Values.postgresql.persistence.mountPath "conf/pg_hba.conf" | quote }}
+                -c include_if_exists={{ printf "%s/conf/postgresql.conf" .Values.postgresql.persistence.mountPath | quote }}
+                -c hba_file={{ printf "%s/conf/pg_hba.conf" .Values.postgresql.persistence.mountPath | quote }}
           {{- if not .Values.postgresql.diagnosticModeEnabled }}
           startupProbe: {{- include "helper.values.render" ( dict "value" .Values.postgresql.startupProbe "context" $ ) | nindent 12 }}
             exec:
@@ -133,14 +245,14 @@ spec:
               mountPath: {{ .Values.postgresql.persistence.mountPath }}
               subPath:  {{ .Values.postgresql.persistence.subPath | default "" }}
             - name: config
-              mountPath: {{ .Values.postgresql.persistence.mountPath }}/conf/pg_hba.conf
+              mountPath: {{ printf "%s/conf/pg_hba.conf" .Values.postgresql.persistence.mountPath }}
               subPath: pg_hba.conf
               readOnly: true
             - name: config
-              mountPath: {{ printf "%s/%s" .Values.postgresql.persistence.mountPath "conf/postgresql.conf" | quote }}
+              mountPath: {{ printf "%s/conf/postgresql.conf" .Values.postgresql.persistence.mountPath }}
               subPath: postgresql.conf
               readOnly: true
-            - name: devShm
+            - name: dev-shm
               mountPath: /dev/shm
             - name: empty-dir
               mountPath: /var/run/postgresql
@@ -148,7 +260,7 @@ spec:
       volumes:
         - name: empty-dir
           emptyDir: {}
-        - name: devShm
+        - name: dev-shm
           emptyDir:
             medium: Memory
             sizeLimit: {{ .Values.postgresql.devShmSize }}
@@ -163,7 +275,6 @@ spec:
         labels:
           {{- include "helper.labels.labels" . | nindent 10 }}
           app.kubernetes.io/component: postgresql
-          role: data
       spec:
         accessModes: [ "ReadWriteOnce" ]
         resources:
