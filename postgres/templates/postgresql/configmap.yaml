@@ -20,6 +20,12 @@ data:
   postgresql.conf: |-
     # From config map
   {{- end }}
+  {{- if .Values.pgpool.enable }}
+    wal_level = replica
+    wal_keep_size = 2GB
+    max_wal_senders = 10
+    max_replication_slots = 10
+  {{- end }}
   {{- if .Values.postgresql.pgHbaConfiguration }}
   {{- include "helper.values.render" ( dict "value" .Values.postgresql.pgHbaConfiguration "context" $ ) | nindent 4 }}
   {{- else }}
