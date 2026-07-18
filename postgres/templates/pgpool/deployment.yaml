@@ -138,6 +138,15 @@ spec:
               value: /opt/pgpool
             - name: PGPOOL_USER
               value: {{ .Values.pgpool.pgPoolUser }}
+            - name: POSTGRES_DB
+              value: {{ .Values.global.pgDbName }}
+            - name: POSTGRES_USER
+              value: {{ .Values.global.pgDbUser }}
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "helper.names.fullname" . }}
+                  key: POSTGRES_PASSWORD
           command:
             - sh
           args:
@@ -163,13 +172,14 @@ spec:
 
                   if [ "$STATUS" -eq 3 ]; then
                     
-                    if pg_isready -h "$DBHOST" -p {{ .Values.postgresql.containerPort }} >/dev/null 2>&1; then
+                    if pg_isready -h "$DBHOST" -p {{ .Values.postgresql.containerPort }} -U "$POSTGRES_USER" -d "$POSTGRES_DB" >/dev/null 2>&1 && \
+                        psql -h "$DBHOST" -p {{ .Values.postgresql.containerPort }} -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "SELECT 1" >/dev/null 2>&1; then
                       READY=1
                     else
                       READY=0
                     fi
 
-                    echo "Node $id ($DBHOST): status=$STATUS, ready=$READY"
+                    # echo "Node $id ($DBHOST): status=$STATUS, ready=$READY"
                     
                     # ----------------------------
                     # ATTACH LOGIC

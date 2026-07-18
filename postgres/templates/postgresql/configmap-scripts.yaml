@@ -21,10 +21,6 @@ data:
     # This script is called by pgpool-II when a backend node is detected as down.
     # It is responsible for promoting a standby server to primary and updating the pgpool configuration.
     
-    if [ $1 -ne $6 ]; then
-        exit 0
-    fi
-
     echo "Starting failover process..."
     FAILED_NODE_ID=$1
     FAILED_HOST=$2
@@ -33,6 +29,11 @@ data:
     OLD_MAIN_NODE_ID=$5
     OLD_PRIMARY_NODE_ID=$6
     OLD_PRIMARY_HOST=$7
+
+    if [ "$FAILED_NODE_ID" != "$OLD_PRIMARY_NODE_ID" ]; then
+      echo "[FAILOVER] Standby failed, no promotion required!"
+      exit 0
+    fi
 
     NEW_PRIMARY_POD_NAME="{{ include "helper.names.fullname" . }}-$NEW_MAIN_NODE_ID"
     OLD_PRIMARY_POD_NAME="{{ include "helper.names.fullname" . }}-$OLD_PRIMARY_NODE_ID"
@@ -55,7 +56,7 @@ data:
     # Promotion
     #
     psql -h $NEW_MAIN_HOST -U postgres -d postgres \
-          -c "SELECT pg_promote();"
+      -tAc "SELECT pg_promote();" > /dev/null 2>&1
 
     #
     # Wait for promotion to complete
@@ -69,7 +70,7 @@ data:
             TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
             NS=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
             CA=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
-            API=https://kubernetes.default.svc/api/v1/namespaces/$NS/pods
+            API="https://${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT}/api/v1/namespaces/${NS}/pods"
 
             echo "[FAILOVER] Removing role label from old primary pod ($OLD_PRIMARY_POD_NAME)..."
             wget -qO /dev/null \
@@ -95,4 +96,30 @@ data:
 
     echo "[FAILOVER] Promotion timeout"
     exit 1
+  check-ready.sh: |
+    #!/bin/bash
+    set -euo pipefail
+
+    ROLE=$(cat /etc/pod-role)   # ou récupération via API Kubernetes
+
+    RECOVERY=$(psql -U postgres -d postgres -tAc \
+      "SELECT pg_is_in_recovery();")
+
+    if [ "$ROLE" = "data-primary" ]; then
+        [ "$RECOVERY" = "f" ] || exit 1
+    else
+        [ "$RECOVERY" = "t" ] || exit 1
+
+        STATUS=$(psql -U postgres -d postgres -tAc \
+          "SELECT status FROM pg_stat_wal_receiver;")
+
+        [ "$STATUS" = "streaming" ] || exit 1
+    fi
+
+    # ensuite vérifier Pgpool
+    STATUS=$(pcp_node_info ... | awk '{print $3}')
+
+    [ "$STATUS" = "2" ] || exit 1
+
+    exit 0
 {{- end -}}

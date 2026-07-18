@@ -159,12 +159,12 @@ spec:
               ROLE=$(cat {{ .Values.postgresql.persistence.mountPath }}/bootstrap-role)
 
               if [ -f "$PGDATA/PG_VERSION" ]; then
-                  echo "Already initialized, skipping replication setup"
+                  echo "Already initialized, skipping replication setup!"
                   exit 0
               fi
               
               if [ "$ROLE" = "data-primary" ]; then
-                echo "I am the Primary then skipping replication setup"
+                echo "I am the Primary then skipping replication setup!"
                 exit 0
               fi
 
@@ -232,11 +232,19 @@ spec:
           readinessProbe: {{- include "helper.values.render" ( dict "value" .Values.postgresql.readinessProbe "context" $ ) | nindent 12 }}
             exec:
               command:
-                - pg_isready
+                - sh
+                - -c
+                - |
+                  pg_isready && \
+                  psql -d "$POSTGRES_DB" -c "SELECT 1" >/dev/null 2>&1
           livenessProbe: {{- include "helper.values.render" ( dict "value" .Values.postgresql.livenessProbe "context" $ ) | nindent 12 }}
             exec:
               command:
-                - pg_isready
+                - sh
+                - -c
+                - |
+                  pg_isready && \
+                  psql -d "$POSTGRES_DB" -c "SELECT 1" >/dev/null 2>&1
           {{- end }}
           {{- if .Values.postgresql.resources }}
           resources: {{- include "helper.values.render" (dict "value" .Values.postgresql.resources "context" $) | nindent 12 }}
