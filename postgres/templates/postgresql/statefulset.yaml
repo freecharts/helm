@@ -71,7 +71,7 @@ spec:
               TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
               NS=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
               CA=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
-              API=https://kubernetes.default.svc/api/v1/namespaces/$NS/pods
+              API="https://${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT}/api/v1/namespaces/${NS}/pods"
 
               SERVICE="{{ include "postgres.headlessName" . }}.$NS.svc.cluster.local"
               IPS=$(nslookup "$SERVICE" 2>/dev/null | awk '/^Address: / {print $2}')
