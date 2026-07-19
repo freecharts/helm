@@ -79,7 +79,7 @@ spec:
               echo "data" > {{ .Values.postgresql.persistence.mountPath }}/bootstrap-role
 
               for ip in $IPS; do
-                if pg_isready -h "$ip" -p 5432 >/dev/null 2>&1; then
+                if pg_isready -h "$ip" -U $POSTGRES_USER -d $POSTGRES_DB -p {{ .Values.postgresql.containerPort }} >/dev/null 2>&1; then
                   POD_EXISTS=1
                 fi
               done
@@ -110,7 +110,7 @@ spec:
               else
                 PRIMARY={{ include "postgres.primaryName" .}}.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local
                 echo "Waiting for primary to be ready..."
-                until pg_isready -h $PRIMARY; do
+                until pg_isready -h $PRIMARY -U $POSTGRES_USER -d $POSTGRES_DB -p {{ .Values.postgresql.containerPort }}; do
                   echo "Waiting for primary to be ready..."
                   sleep 5
                 done
@@ -133,6 +133,10 @@ spec:
           env:
             - name: PGDATA
               value: {{ printf "%s/pgdata" .Values.postgresql.persistence.mountPath | quote }}
+            - name: POSTGRES_USER
+              value: {{ .Values.global.pgDbUser }}
+            - name: POSTGRES_DB
+              value: {{ .Values.global.pgDbName }}
             - name: POD_NAME
               valueFrom:
                 fieldRef:
@@ -170,7 +174,7 @@ spec:
 
               echo "I am a Replica, starting replication..."
               until pg_basebackup \
-                -d "host=${PRIMARY} user={{ .Values.global.pgDbUser }} dbname=replication application_name=${POD_NAME}" \
+                -d "host=${PRIMARY} user=${POSTGRES_USER} dbname=replication port={{ .Values.postgresql.containerPort }} application_name=${POD_NAME}" \
                 -D $FOLDER/pgdata  -vP \
                 -R \
                 --wal-method=stream; 
@@ -185,6 +189,8 @@ spec:
           env:
             - name: PGDATA
               value: {{ printf "%s/pgdata" .Values.postgresql.persistence.mountPath | quote }}
+            - name: POSTGRES_USER
+              value: {{ .Values.global.pgDbUser }}
             - name: POD_NAME
               valueFrom:
                 fieldRef:
@@ -228,23 +234,26 @@ spec:
           startupProbe: {{- include "helper.values.render" ( dict "value" .Values.postgresql.startupProbe "context" $ ) | nindent 12 }}
             exec:
               command:
-                - pg_isready
+                - sh
+                - -c
+                - |
+                  pg_isready -U $POSTGRES_USER -d $POSTGRES_DB -p {{ .Values.postgresql.containerPort }}
           readinessProbe: {{- include "helper.values.render" ( dict "value" .Values.postgresql.readinessProbe "context" $ ) | nindent 12 }}
             exec:
               command:
                 - sh
                 - -c
                 - |
-                  pg_isready && \
-                  psql -d "$POSTGRES_DB" -c "SELECT 1" >/dev/null 2>&1
+                  pg_isready -U $POSTGRES_USER -d $POSTGRES_DB -p {{ .Values.postgresql.containerPort }} && \
+                  psql -U $POSTGRES_USER -d $POSTGRES_DB -p {{ .Values.postgresql.containerPort }} -c "SELECT 1" >/dev/null 2>&1
           livenessProbe: {{- include "helper.values.render" ( dict "value" .Values.postgresql.livenessProbe "context" $ ) | nindent 12 }}
             exec:
               command:
                 - sh
                 - -c
                 - |
-                  pg_isready && \
-                  psql -d "$POSTGRES_DB" -c "SELECT 1" >/dev/null 2>&1
+                  pg_isready -U $POSTGRES_USER -d $POSTGRES_DB -p {{ .Values.postgresql.containerPort }} && \
+                  psql -U $POSTGRES_USER -d $POSTGRES_DB -p {{ .Values.postgresql.containerPort }} -c "SELECT 1" >/dev/null 2>&1
           {{- end }}
           {{- if .Values.postgresql.resources }}
           resources: {{- include "helper.values.render" (dict "value" .Values.postgresql.resources "context" $) | nindent 12 }}

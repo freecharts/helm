@@ -31,7 +31,7 @@ data:
     OLD_PRIMARY_HOST=$7
 
     if [ "$FAILED_NODE_ID" != "$OLD_PRIMARY_NODE_ID" ]; then
-      echo "[FAILOVER] Standby failed, no promotion required!"
+      echo "[FAILOVER] Standby failed ($FAILED_NODE_ID), no promotion required!"
       exit 0
     fi
 
@@ -55,14 +55,14 @@ data:
     #
     # Promotion
     #
-    psql -h $NEW_MAIN_HOST -U postgres -d postgres \
+    psql -h $NEW_MAIN_HOST -U $POSTGRES_USER -d $POSTGRES_DB \
       -tAc "SELECT pg_promote();" > /dev/null 2>&1
 
     #
     # Wait for promotion to complete
     #
     for i in $(seq 1 30); do
-        RECOVERY=$(psql -h $NEW_MAIN_HOST -U postgres -d postgres -tAc \
+        RECOVERY=$(psql -h $NEW_MAIN_HOST -U $POSTGRES_USER -d $POSTGRES_DB -tAc \
               "SELECT pg_is_in_recovery();")
 
         if [ "$RECOVERY" = "f" ]; then
