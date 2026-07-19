@@ -26,6 +26,8 @@ spec:
         role: pool
     spec:
       serviceAccountName: {{ include "postgres.serviceAccountName" . }}
+      {{- include "helper.images.imagePullSecrets" (dict "imageRoot" .Values.pgpool "global" .Values.global) | nindent 6 }}
+      {{- include "helper.pods.renderSecurityContext" (dict "securityContext" .Values.pgpool.podSecurityContext) | nindent 6 }}
       initContainers:
         - name: waiting-on-primary
           image: {{ include "helper.images.image" (dict "imageRoot" .Values.pgpool.initImage "global" .Values.global) }}
@@ -60,7 +62,7 @@ spec:
 
               echo "Init data for pgpool"
               mkdir -p $PGPOOL_DATA/conf $PGPOOL_DATA/logs $PGPOOL_DATA/run && \
-              chmod 700 $PGPOOL_DATA/conf $PGPOOL_DATA/logs $PGPOOL_DATA/run && \
+              chmod 750 $PGPOOL_DATA/conf $PGPOOL_DATA/logs $PGPOOL_DATA/run && \
               chown -R {{ .Values.pgpool.containerSecurityContext.runAsUser }}:{{ .Values.pgpool.containerSecurityContext.runAsGroup }} $PGPOOL_DATA/conf $PGPOOL_DATA/logs $PGPOOL_DATA/run
 
               echo "Creating pcp.conf for pgpool..."
@@ -86,6 +88,7 @@ spec:
               done
 
               chown -R {{ .Values.pgpool.containerSecurityContext.runAsUser }}:{{ .Values.pgpool.containerSecurityContext.runAsGroup }} $PGPOOL_DATA/conf/backends.conf
+              chmod 640 $PGPOOL_DATA/conf/backends.conf
           volumeMounts:
             - name: data
               mountPath: /opt/pgpool
@@ -213,8 +216,9 @@ spec:
         - name: config
           configMap:
             name: {{ include "helper.names.fullname" . }}
+            defaultMode: 0440
         - name: scripts
           configMap:
             name: {{ include "helper.names.fullname" . }}-scripts
-            defaultMode: 0755
+            defaultMode: 0550
 {{- end -}}
