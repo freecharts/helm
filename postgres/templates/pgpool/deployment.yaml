@@ -36,16 +36,27 @@ spec:
             runAsUser: 0
           env:
             - name: TZ
-              value: {{ .Values.global.timezone }}
+              value: {{ .Values.global.timezone | quote }}
             - name: PGPOOL_DATA
               value: /opt/pgpool
+            - name: POSTGRES_PORT
+              value: {{ .Values.postgresql.containerPort | quote }}
             - name: PGPOOL_USER
-              value: {{ .Values.pgpool.pgPoolUser }}
+              value: {{ .Values.pgpool.pgPoolUser | quote }}
             - name: PGPOOL_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ include "helper.names.fullname" . }}
                   key: PGPOOL_PASSWORD
+            - name: POSTGRES_DB
+              value: {{ .Values.global.pgDbName }}
+            - name: POSTGRES_USER
+              value: {{ .Values.global.pgDbUser | quote }}
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "helper.names.fullname" . }}
+                  key: POSTGRES_PASSWORD
           command:
             - sh
           args:
@@ -54,7 +65,7 @@ spec:
               NS=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
               PRIMARY={{ include "postgres.primaryName" .}}.$NS.svc.cluster.local
               echo "Waiting for primary to be ready..."
-              until pg_isready -h $PRIMARY; do
+              until pg_isready -h $PRIMARY -p $POSTGRES_PORT -d $POSTGRES_DB -U $POSTGRES_USER; do
                   echo "Waiting for primary to be ready..."
                   sleep 5
               done
@@ -81,7 +92,7 @@ spec:
               for i in $(seq 0 {{ .Values.pgpool.maxBackendNodes }}); do
                 HOST=$(printf "{{ include "helper.names.fullname" . }}-%s" $i)
                 echo "backend_hostname${i} = '${HOST}.${SVC}.${NS}.svc.cluster.local'" >> $PGPOOL_DATA/conf/backends.conf
-                echo "backend_port${i} = 5432" >> $PGPOOL_DATA/conf/backends.conf
+                echo "backend_port${i} = ${POSTGRES_PORT}" >> $PGPOOL_DATA/conf/backends.conf
                 echo "backend_weight${i} = 1" >> $PGPOOL_DATA/conf/backends.conf
                 echo "backend_flag${i} = 'ALLOW_TO_FAILOVER'" >> $PGPOOL_DATA/conf/backends.conf
                 echo "backend_app_name${i} = '${HOST}'" >> $PGPOOL_DATA/conf/backends.conf
@@ -106,13 +117,15 @@ spec:
           {{- end }}
           env:
             - name: TZ
-              value: {{ .Values.global.timezone }}
+              value: {{ .Values.global.timezone | quote }}
             - name: PGPOOL_DATA
               value: /opt/pgpool
+            - name: POSTGRES_PORT
+              value: {{ .Values.postgresql.containerPort | quote }}
             - name: POSTGRES_DB
-              value: {{ .Values.global.pgDbName }}
+              value: {{ .Values.global.pgDbName | quote }}
             - name: POSTGRES_USER
-              value: {{ .Values.global.pgDbUser }}
+              value: {{ .Values.global.pgDbUser | quote }}
             - name: PGPASSWORD
               valueFrom:
                 secretKeyRef:
@@ -133,15 +146,17 @@ spec:
           {{- include "helper.pods.renderSecurityContext" (dict "securityContext" .Values.pgpool.containerSecurityContext) | nindent 10 }}
           env:
             - name: TZ
-              value: {{ .Values.global.timezone }}
+              value: {{ .Values.global.timezone | quote }}
             - name: PGPOOL_DATA
               value: /opt/pgpool
             - name: PGPOOL_USER
               value: {{ .Values.pgpool.pgPoolUser }}
+            - name: POSTGRES_PORT
+              value: {{ .Values.postgresql.containerPort | quote }}
             - name: POSTGRES_DB
-              value: {{ .Values.global.pgDbName }}
+              value: {{ .Values.global.pgDbName | quote }}
             - name: POSTGRES_USER
-              value: {{ .Values.global.pgDbUser }}
+              value: {{ .Values.global.pgDbUser | quote }}
             - name: PGPASSWORD
               valueFrom:
                 secretKeyRef:
@@ -174,8 +189,8 @@ spec:
 
                   if [ "$STATUS" -eq 3 ]; then
                     
-                    if pg_isready -h "$DBHOST" -p {{ .Values.postgresql.containerPort }} -U "$POSTGRES_USER" -d "$POSTGRES_DB" >/dev/null 2>&1 && \
-                        psql -h "$DBHOST" -p {{ .Values.postgresql.containerPort }} -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "SELECT 1" >/dev/null 2>&1; then
+                    if pg_isready -h "$DBHOST" -p $POSTGRES_PORT -U "$POSTGRES_USER" -d "$POSTGRES_DB" >/dev/null 2>&1 && \
+                        psql -h "$DBHOST" -p $POSTGRES_PORT -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "SELECT 1" >/dev/null 2>&1; then
                       READY=1
                     else
                       READY=0

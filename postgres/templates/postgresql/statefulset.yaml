@@ -79,7 +79,7 @@ spec:
               echo "data" > {{ .Values.postgresql.persistence.mountPath }}/bootstrap-role
 
               for ip in $IPS; do
-                if pg_isready -h "$ip" -U $POSTGRES_USER -d $POSTGRES_DB -p {{ .Values.postgresql.containerPort }} >/dev/null 2>&1; then
+                if pg_isready -h "$ip" -U $POSTGRES_USER -d $POSTGRES_DB -p $POSTGRES_PORT >/dev/null 2>&1; then
                   POD_EXISTS=1
                 fi
               done
@@ -133,10 +133,12 @@ spec:
           env:
             - name: PGDATA
               value: {{ printf "%s/pgdata" .Values.postgresql.persistence.mountPath | quote }}
+            - name: POSTGRES_PORT
+              value: {{ .Values.postgresql.containerPort | quote }}
             - name: POSTGRES_USER
-              value: {{ .Values.global.pgDbUser }}
+              value: {{ .Values.global.pgDbUser | quote }}
             - name: POSTGRES_DB
-              value: {{ .Values.global.pgDbName }}
+              value: {{ .Values.global.pgDbName | quote }}
             - name: POD_NAME
               valueFrom:
                 fieldRef:
@@ -174,7 +176,7 @@ spec:
 
               echo "I am a Replica, starting replication..."
               until pg_basebackup \
-                -d "host=${PRIMARY} user=${POSTGRES_USER} dbname=replication port={{ .Values.postgresql.containerPort }} application_name=${POD_NAME}" \
+                -d "host=${PRIMARY} user=${POSTGRES_USER} dbname=replication port=${POSTGRES_PORT} application_name=${POD_NAME}" \
                 -D $FOLDER/pgdata  -vP \
                 -R \
                 --wal-method=stream; 
@@ -189,8 +191,10 @@ spec:
           env:
             - name: PGDATA
               value: {{ printf "%s/pgdata" .Values.postgresql.persistence.mountPath | quote }}
+            - name: POSTGRES_PORT
+              value: {{ .Values.postgresql.containerPort | quote }}
             - name: POSTGRES_USER
-              value: {{ .Values.global.pgDbUser }}
+              value: {{ .Values.global.pgDbUser | quote }}
             - name: POD_NAME
               valueFrom:
                 fieldRef:
@@ -217,10 +221,12 @@ spec:
               value: {{ .Values.global.timezone }}
             - name: PGDATA
               value: {{ printf "%s/pgdata" .Values.postgresql.persistence.mountPath | quote }}
+            - name: POSTGRES_PORT
+              value: {{ .Values.postgresql.containerPort | quote }}
             - name: POSTGRES_DB
-              value: {{ .Values.global.pgDbName }}
+              value: {{ .Values.global.pgDbName | quote }}
             - name: POSTGRES_USER
-              value: {{ .Values.global.pgDbUser }}
+              value: {{ .Values.global.pgDbUser | quote }}
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -237,23 +243,23 @@ spec:
                 - sh
                 - -c
                 - |
-                  pg_isready -U $POSTGRES_USER -d $POSTGRES_DB -p {{ .Values.postgresql.containerPort }}
+                  pg_isready -U $POSTGRES_USER -d $POSTGRES_DB -p $POSTGRES_PORT
           readinessProbe: {{- include "helper.values.render" ( dict "value" .Values.postgresql.readinessProbe "context" $ ) | nindent 12 }}
             exec:
               command:
                 - sh
                 - -c
                 - |
-                  pg_isready -U $POSTGRES_USER -d $POSTGRES_DB -p {{ .Values.postgresql.containerPort }} && \
-                  psql -U $POSTGRES_USER -d $POSTGRES_DB -p {{ .Values.postgresql.containerPort }} -c "SELECT 1" >/dev/null 2>&1
+                  pg_isready -U $POSTGRES_USER -d $POSTGRES_DB -p $POSTGRES_PORT && \
+                  psql -U $POSTGRES_USER -d $POSTGRES_DB -p $POSTGRES_PORT -c "SELECT 1" >/dev/null 2>&1
           livenessProbe: {{- include "helper.values.render" ( dict "value" .Values.postgresql.livenessProbe "context" $ ) | nindent 12 }}
             exec:
               command:
                 - sh
                 - -c
                 - |
-                  pg_isready -U $POSTGRES_USER -d $POSTGRES_DB -p {{ .Values.postgresql.containerPort }} && \
-                  psql -U $POSTGRES_USER -d $POSTGRES_DB -p {{ .Values.postgresql.containerPort }} -c "SELECT 1" >/dev/null 2>&1
+                  pg_isready -U $POSTGRES_USER -d $POSTGRES_DB -p $POSTGRES_PORT && \
+                  psql -U $POSTGRES_USER -d $POSTGRES_DB -p $POSTGRES_PORT -c "SELECT 1" >/dev/null 2>&1
           {{- end }}
           {{- if .Values.postgresql.resources }}
           resources: {{- include "helper.values.render" (dict "value" .Values.postgresql.resources "context" $) | nindent 12 }}

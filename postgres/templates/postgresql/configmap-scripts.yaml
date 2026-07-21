@@ -55,14 +55,14 @@ data:
     #
     # Promotion
     #
-    psql -h $NEW_MAIN_HOST -U $POSTGRES_USER -d $POSTGRES_DB \
+    psql -h $NEW_MAIN_HOST -p $POSTGRES_PORT -U $POSTGRES_USER -d $POSTGRES_DB \
       -tAc "SELECT pg_promote();" > /dev/null 2>&1
 
     #
     # Wait for promotion to complete
     #
     for i in $(seq 1 30); do
-        RECOVERY=$(psql -h $NEW_MAIN_HOST -U $POSTGRES_USER -d $POSTGRES_DB -tAc \
+        RECOVERY=$(psql -h $NEW_MAIN_HOST -p $POSTGRES_PORT -U $POSTGRES_USER -d $POSTGRES_DB -tAc \
               "SELECT pg_is_in_recovery();")
 
         if [ "$RECOVERY" = "f" ]; then
