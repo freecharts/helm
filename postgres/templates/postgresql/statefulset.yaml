@@ -110,7 +110,7 @@ spec:
               else
                 PRIMARY={{ include "postgres.primaryName" .}}.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local
                 echo "Waiting for primary to be ready..."
-                until pg_isready -h $PRIMARY -U $POSTGRES_USER -d $POSTGRES_DB -p {{ .Values.postgresql.containerPort }}; do
+                until pg_isready -h $PRIMARY -U $POSTGRES_USER -d $POSTGRES_DB -p $POSTGRES_PORT; do
                   echo "Waiting for primary to be ready..."
                   sleep 5
                 done
