@@ -96,30 +96,32 @@ data:
 
     echo "[FAILOVER] Promotion timeout"
     exit 1
-  check-ready.sh: |
+  check-node-status.sh: |
     #!/bin/bash
     set -euo pipefail
 
-    ROLE=$(cat /etc/pod-role)   # ou récupération via API Kubernetes
+    pg_isready -U $POSTGRES_USER -d $POSTGRES_DB -p $POSTGRES_PORT >/dev/null 2>&1 || exit 1
+    psql -U $POSTGRES_USER -d $POSTGRES_DB -p $POSTGRES_PORT -c "SELECT 1" >/dev/null 2>&1 || exit 1
 
-    RECOVERY=$(psql -U postgres -d postgres -tAc \
-      "SELECT pg_is_in_recovery();")
-
-    if [ "$ROLE" = "data-primary" ]; then
-        [ "$RECOVERY" = "f" ] || exit 1
-    else
-        [ "$RECOVERY" = "t" ] || exit 1
-
-        STATUS=$(psql -U postgres -d postgres -tAc \
-          "SELECT status FROM pg_stat_wal_receiver;")
-
-        [ "$STATUS" = "streaming" ] || exit 1
+    if [ ! -f "$PGDATA/standby.signal" ]; then
+        # Primary node, no need to check pool nodes
+        exit 0
     fi
 
-    # ensuite vérifier Pgpool
-    STATUS=$(pcp_node_info ... | awk '{print $3}')
+    NS=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
+    HOST="${POD_NAME}.{{ include "postgres.headlessName" . }}.${NS}.svc.cluster.local"
+    SERVICE="{{ include "helper.names.fullname" . }}.${NS}.svc.cluster.local"
 
-    [ "$STATUS" = "2" ] || exit 1
-
-    exit 0
+    PGPASSWORD=$POSTGRES_PASSWORD && psql -h $SERVICE \
+        -U $POSTGRES_USER \
+        -d $POSTGRES_DB \
+        -Atc "SHOW POOL_NODES" |
+    awk -F'|' -v host="$HOST" '
+    {
+        gsub(/^[ \t]+|[ \t]+$/, "", $2)   # hostname
+        gsub(/^[ \t]+|[ \t]+$/, "", $4)   # status
+        if ($2 == host && $4 == "up")
+            found=1
+    }
+    END { exit(found ? 0 : 1) }'
 {{- end -}}

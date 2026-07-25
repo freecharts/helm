@@ -188,6 +188,7 @@ spec:
               chmod -R 700 $FOLDER/pgdata && \
               chown -R {{ .Values.postgresql.containerSecurityContext.runAsUser }}:{{ .Values.postgresql.containerSecurityContext.runAsGroup }} $FOLDER/pgdata
               echo "Base backup completed, replication setup is done."
+              exit 0
           env:
             - name: PGDATA
               value: {{ printf "%s/pgdata" .Values.postgresql.persistence.mountPath | quote }}
@@ -202,6 +203,9 @@ spec:
           volumeMounts:
             - name: data
               mountPath: {{ .Values.postgresql.persistence.mountPath }}
+            - name: scripts
+              mountPath: {{ .Values.postgresql.persistence.mountPath }}/check-node-status.sh
+              subPath: check-node-status.sh
         {{- end }}
       containers:
         - name: {{ include "helper.names.fullname" . }}
@@ -236,6 +240,10 @@ spec:
               value: >-
                 -c include_if_exists={{ printf "%s/conf/postgresql.conf" .Values.postgresql.persistence.mountPath | quote }}
                 -c hba_file={{ printf "%s/conf/pg_hba.conf" .Values.postgresql.persistence.mountPath | quote }}
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
           {{- if not .Values.postgresql.diagnosticModeEnabled }}
           startupProbe: {{- include "helper.values.render" ( dict "value" .Values.postgresql.startupProbe "context" $ ) | nindent 12 }}
             exec:
@@ -249,9 +257,13 @@ spec:
               command:
                 - sh
                 - -c
+                {{- if .Values.pgpool.enable }}
+                - {{ .Values.postgresql.persistence.mountPath }}/check-node-status.sh
+                {{- else }}
                 - |
                   pg_isready -U $POSTGRES_USER -d $POSTGRES_DB -p $POSTGRES_PORT && \
                   psql -U $POSTGRES_USER -d $POSTGRES_DB -p $POSTGRES_PORT -c "SELECT 1" >/dev/null 2>&1
+                {{- end }}
           livenessProbe: {{- include "helper.values.render" ( dict "value" .Values.postgresql.livenessProbe "context" $ ) | nindent 12 }}
             exec:
               command:
@@ -278,6 +290,10 @@ spec:
               mountPath: {{ printf "%s/conf/postgresql.conf" .Values.postgresql.persistence.mountPath }}
               subPath: postgresql.conf
               readOnly: true
+            - name: scripts
+              mountPath: {{ .Values.postgresql.persistence.mountPath }}/check-node-status.sh
+              subPath: check-node-status.sh
+              readOnly: true
             - name: dev-shm
               mountPath: /dev/shm
             - name: empty-dir
@@ -293,6 +309,11 @@ spec:
         - name: config
           configMap:
             name: {{ include "helper.names.fullname" . }}
+            defaultMode: 0440
+        - name: scripts
+          configMap:
+            name: {{ include "helper.names.fullname" . }}-scripts
+            defaultMode: 0550
   volumeClaimTemplates:
     - apiVersion: v1
       kind: PersistentVolumeClaim
