@@ -85,7 +85,7 @@ spec:
             - -c
             - |
               {{- if .Values.pgpool.enable }}
-              /opt/init-primary.sh
+              /opt/scripts/init-primary.sh
               {{- end }}
 
               if [ -f "$PGDATA/PG_VERSION" ]; then
@@ -94,20 +94,21 @@ spec:
               fi
 
               FOLDER={{ .Values.postgresql.persistence.mountPath }}
-              echo "Creating folder $FOLDER structure and setting permissions"
+              USER={{ .Values.postgresql.containerSecurityContext.runAsUser }}
+              GROUP={{ .Values.postgresql.containerSecurityContext.runAsGroup }}
+              echo "Creating folder $FOLDER structure and setting permissions."
               mkdir -p $FOLDER/pgdata $FOLDER/conf $FOLDER/scripts && \
               chmod 700 $FOLDER/pgdata $FOLDER/conf $FOLDER/scripts && \
-              chown {{ .Values.postgresql.containerSecurityContext.runAsUser }}:{{ .Values.postgresql.containerSecurityContext.runAsGroup }} \
-                $FOLDER/pgdata $FOLDER/conf $FOLDER/scripts
+              chown ${USER}:${GROUP} $FOLDER/pgdata $FOLDER/conf $FOLDER/scripts
               mkdir -p /var/run/postgresql && \
               chmod 777 /var/run/postgresql && \
-              chown {{ .Values.postgresql.containerSecurityContext.runAsUser }}:{{ .Values.postgresql.containerSecurityContext.runAsGroup }} /var/run/postgresql
+              chown ${USER}:${GROUP} /var/run/postgresql
           volumeMounts:
             - name: data
               mountPath: {{ .Values.postgresql.persistence.mountPath }}
             {{- if .Values.pgpool.enable }}
             - name: scripts
-              mountPath: /opt/init-primary.sh
+              mountPath: /opt/scripts/init-primary.sh
               subPath: init-primary.sh
               readOnly: true
             {{- end }}
@@ -143,12 +144,12 @@ spec:
           args:
             - -c
             - |
-              {{ .Values.postgresql.persistence.mountPath }}/scripts/init-replica.sh
+              /opt/scripts/init-replica.sh
           volumeMounts:
             - name: data
               mountPath: {{ .Values.postgresql.persistence.mountPath }}
             - name: scripts
-              mountPath: {{ .Values.postgresql.persistence.mountPath }}/scripts/init-replica.sh
+              mountPath: /opt/scripts/init-replica.sh
               subPath: init-replica.sh
               readOnly: true
         {{- end }}
@@ -203,7 +204,7 @@ spec:
                 - sh
                 - -c
                 {{- if .Values.pgpool.enable }}
-                - {{ .Values.postgresql.persistence.mountPath }}/scripts/check-node-status.sh
+                - /opt/scripts/check-node-status.sh
                 {{- else }}
                 - |
                   pg_isready -U $POSTGRES_USER -d $POSTGRES_DB -p $POSTGRES_PORT && \
@@ -236,7 +237,7 @@ spec:
               subPath: postgresql.conf
               readOnly: true
             - name: scripts
-              mountPath: {{ .Values.postgresql.persistence.mountPath }}/scripts/check-node-status.sh
+              mountPath: /opt/scripts/check-node-status.sh
               subPath: check-node-status.sh
               readOnly: true
             - name: dev-shm

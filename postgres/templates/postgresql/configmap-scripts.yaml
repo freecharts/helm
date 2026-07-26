@@ -107,11 +107,13 @@ data:
     NS=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
     CA=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
     API="https://${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT}/api/v1/namespaces/${NS}/pods"
-
+    PRIMARY={{ include "postgres.primaryName" .}}.$NS.svc.cluster.local
     SERVICE="{{ include "postgres.headlessName" . }}.$NS.svc.cluster.local"
     IPS=$(nslookup "$SERVICE" 2>/dev/null | awk '/^Address: / {print $2}')
     POD_EXISTS=0
-    echo "data" > {{ .Values.postgresql.persistence.mountPath }}/bootstrap-role
+    PGMOUNT={{ .Values.postgresql.persistence.mountPath }}
+
+    echo "data" > ${PGMOUNT}/bootstrap-role
 
     for ip in $IPS; do
       if pg_isready -h "$ip" -U $POSTGRES_USER -d $POSTGRES_DB -p $POSTGRES_PORT >/dev/null 2>&1; then
@@ -137,7 +139,7 @@ data:
         --method=PATCH --body-data='{"metadata":{"labels":{"role":"data-primary"}}}' \
         "$API/$POD_NAME"
       then
-        echo "data-primary" > {{ .Values.postgresql.persistence.mountPath }}/bootstrap-role
+        echo "data-primary" > ${PGMOUNT}/bootstrap-role
         echo "Pod labels modified successfully"
         exit 0
       else
@@ -146,12 +148,13 @@ data:
       fi
     else
       echo "I am a Standby, waiting for primary to be ready..."
-      PRIMARY={{ include "postgres.primaryName" .}}.$NS.svc.cluster.local
+      
       until pg_isready -h "$PRIMARY" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -p $POSTGRES_PORT >/dev/null 2>&1 && \
           psql -h "$PRIMARY" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -p $POSTGRES_PORT -tAc "SELECT 1" >/dev/null 2>&1; do
         echo "Waiting for primary to be ready..."
         sleep 5
       done
+
       echo "Primary is ready..."
       exit 0
     fi
@@ -165,7 +168,10 @@ data:
     PRIMARY={{ include "postgres.primaryName" .}}.$NS.svc.cluster.local
     # here we can't use k8s api because the pod is a postgres legacy image without wget 
     # so use what's as been provide by previous init script
-    ROLE=$(cat {{ .Values.postgresql.persistence.mountPath }}/bootstrap-role)
+    PGMOUNT={{ .Values.postgresql.persistence.mountPath }}
+    USER={{ .Values.postgresql.containerSecurityContext.runAsUser }}
+    GROUP={{ .Values.postgresql.containerSecurityContext.runAsGroup }}
+    ROLE=$(cat ${PGMOUNT}/bootstrap-role)
 
     if [ -f "$PGDATA/PG_VERSION" ]; then
         echo "Already initialized, skipping replication setup!"
@@ -199,10 +205,14 @@ data:
 
     touch $PGDATA/standby.signal
     cat > "$PGDATA/postgresql.auto.conf" <<EOF
-    primary_conninfo = 'host=${PRIMARY} port=${POSTGRES_PORT} user=${POSTGRES_USER} application_name=${POD_NAME} dbname=replication'
+    primary_conninfo = 'host=${PRIMARY} port=${POSTGRES_PORT} user=${POSTGRES_USER} application_name=${POD_NAME} dbname=replication passfile=${PGMOUNT}/conf/.pgpass'
     EOF
+    cat > ${PGMOUNT}/conf/.pgpass <<EOF
+    ${PRIMARY}:${POSTGRES_PORT}:replication:${POSTGRES_USER}:${PGPASSWORD}
+    EOF
+    chmod 600 ${PGMOUNT}/conf/.pgpass
     chmod -R 700 $PGDATA && \
-    chown -R {{ .Values.postgresql.containerSecurityContext.runAsUser }}:{{ .Values.postgresql.containerSecurityContext.runAsGroup }} $PGDATA
+    chown -R ${USER}:${GROUP} $PGDATA ${PGMOUNT}/conf/.pgpass
     echo "Base backup completed, replication setup is done."
     exit 0
   check-node-status.sh: |
