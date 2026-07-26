@@ -66,10 +66,15 @@ spec:
               value: {{ printf "%s/pgdata" .Values.postgresql.persistence.mountPath | quote }}
             - name: POSTGRES_PORT
               value: {{ .Values.postgresql.containerPort | quote }}
-            - name: POSTGRES_USER
-              value: {{ .Values.global.pgDbUser | quote }}
             - name: POSTGRES_DB
               value: {{ .Values.global.pgDbName | quote }}
+            - name: POSTGRES_USER
+              value: {{ .Values.global.pgDbUser | quote }}
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "helper.names.fullname" . }}
+                  key: POSTGRES_PASSWORD
             - name: POD_NAME
               valueFrom:
                 fieldRef:
@@ -80,56 +85,9 @@ spec:
             - -c
             - |
               {{- if .Values.pgpool.enable }}
-              ORDINAL="${POD_NAME##*-}"
-              TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
-              NS=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
-              CA=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
-              API="https://${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT}/api/v1/namespaces/${NS}/pods"
-
-              SERVICE="{{ include "postgres.headlessName" . }}.$NS.svc.cluster.local"
-              IPS=$(nslookup "$SERVICE" 2>/dev/null | awk '/^Address: / {print $2}')
-              POD_EXISTS=0
-              echo "data" > {{ .Values.postgresql.persistence.mountPath }}/bootstrap-role
-
-              for ip in $IPS; do
-                if pg_isready -h "$ip" -U $POSTGRES_USER -d $POSTGRES_DB -p $POSTGRES_PORT >/dev/null 2>&1; then
-                  POD_EXISTS=1
-                fi
-              done
-
-              # pod is a primary and other pods are ready then cleanup pgdata folder and reinitialize it
-              if { [ -f "$PGDATA/PG_VERSION" ] && [ ! -f "$PGDATA/standby.signal" ] && [ "$POD_EXISTS" = "1" ]; } then
-                rm -rf $PGDATA/*
-                echo "Primary pod detected and other pods are ready, cleaning up pgdata folder and reinitializing it"
-                exit 0
-              fi
-
-              if { [ -f "$PGDATA/PG_VERSION" ] && [ ! -f "$PGDATA/standby.signal" ]; } || \
-                 { [ ! -f "$PGDATA/PG_VERSION" ] && [ "$ORDINAL" = "0" ] && [ "$POD_EXISTS" = "0" ]; } 
-                 then
-                  echo "I am the Primary, then modifying pod labels to role=data-primary"
-                  if wget -qO /dev/null \
-                    --ca-certificate=$CA \
-                    --header="Authorization: Bearer $TOKEN" \
-                    --header="Content-Type: application/strategic-merge-patch+json" \
-                    --method=PATCH --body-data='{"metadata":{"labels":{"role":"data-primary"}}}' \
-                    "$API/$POD_NAME"
-                  then
-                    echo "data-primary" > {{ .Values.postgresql.persistence.mountPath }}/bootstrap-role
-                    echo "Pod labels modified successfully"
-                  else
-                    echo "Failed to modify pod labels"  
-                  fi
-              else
-                PRIMARY={{ include "postgres.primaryName" .}}.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local
-                echo "Waiting for primary to be ready..."
-                until pg_isready -h $PRIMARY -U $POSTGRES_USER -d $POSTGRES_DB -p $POSTGRES_PORT; do
-                  echo "Waiting for primary to be ready..."
-                  sleep 5
-                done
-                echo "Primary is ready..."
-              fi
+              {{ .Values.postgresql.persistence.mountPath }}/init-primary.sh
               {{- end }}
+              
               if [ -f "$PGDATA/PG_VERSION" ]; then
                 echo "Already initialized, skipping folder structure creation"
                 exit 0
@@ -147,6 +105,10 @@ spec:
           volumeMounts:
             - name: data
               mountPath: {{ .Values.postgresql.persistence.mountPath }}
+            - name: scripts
+              mountPath: {{ .Values.postgresql.persistence.mountPath }}/init-primary.sh
+              subPath: init-primary.sh
+              readOnly: true
             - name: empty-dir
               mountPath: /var/run
               subPath: run
