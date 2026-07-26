@@ -85,9 +85,9 @@ spec:
             - -c
             - |
               {{- if .Values.pgpool.enable }}
-              {{ .Values.postgresql.persistence.mountPath }}/init-primary.sh
+              /opt/init-primary.sh
               {{- end }}
-              
+
               if [ -f "$PGDATA/PG_VERSION" ]; then
                 echo "Already initialized, skipping folder structure creation"
                 exit 0
@@ -105,10 +105,12 @@ spec:
           volumeMounts:
             - name: data
               mountPath: {{ .Values.postgresql.persistence.mountPath }}
+            {{- if .Values.pgpool.enable }}
             - name: scripts
-              mountPath: {{ .Values.postgresql.persistence.mountPath }}/init-primary.sh
+              mountPath: /opt/init-primary.sh
               subPath: init-primary.sh
               readOnly: true
+            {{- end }}
             - name: empty-dir
               mountPath: /var/run
               subPath: run
@@ -123,8 +125,15 @@ spec:
               value: {{ printf "%s/pgdata" .Values.postgresql.persistence.mountPath | quote }}
             - name: POSTGRES_PORT
               value: {{ .Values.postgresql.containerPort | quote }}
+            - name: POSTGRES_DB
+              value: {{ .Values.global.pgDbName | quote }}
             - name: POSTGRES_USER
               value: {{ .Values.global.pgDbUser | quote }}
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "helper.names.fullname" . }}
+                  key: POSTGRES_PASSWORD
             - name: POD_NAME
               valueFrom:
                 fieldRef:
@@ -134,38 +143,14 @@ spec:
           args:
             - -c
             - |
-              PRIMARY={{ include "postgres.primaryName" .}}.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local
-              FOLDER={{ .Values.postgresql.persistence.mountPath }}
-              ROLE=$(cat {{ .Values.postgresql.persistence.mountPath }}/bootstrap-role)
-
-              if [ -f "$PGDATA/PG_VERSION" ]; then
-                  echo "Already initialized, skipping replication setup!"
-                  exit 0
-              fi
-              
-              if [ "$ROLE" = "data-primary" ]; then
-                echo "I am the Primary then skipping replication setup!"
-                exit 0
-              fi
-
-              echo "I am a Replica, starting replication..."
-              until pg_basebackup \
-                -d "host=${PRIMARY} user=${POSTGRES_USER} dbname=replication port=${POSTGRES_PORT} application_name=${POD_NAME}" \
-                -D $FOLDER/pgdata  -vP \
-                -R \
-                --wal-method=stream; 
-                do
-                  echo "Base backup failed, retrying..."
-                  sleep 5
-              done
-              
-              chmod -R 700 $FOLDER/pgdata && \
-              chown -R {{ .Values.postgresql.containerSecurityContext.runAsUser }}:{{ .Values.postgresql.containerSecurityContext.runAsGroup }} $FOLDER/pgdata
-              echo "Base backup completed, replication setup is done."
-              exit 0
+              {{ .Values.postgresql.persistence.mountPath }}/scripts/init-replica.sh
           volumeMounts:
             - name: data
               mountPath: {{ .Values.postgresql.persistence.mountPath }}
+            - name: scripts
+              mountPath: {{ .Values.postgresql.persistence.mountPath }}/scripts/init-replica.sh
+              subPath: init-replica.sh
+              readOnly: true
         {{- end }}
       containers:
         - name: {{ include "helper.names.fullname" . }}

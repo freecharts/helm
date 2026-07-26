@@ -159,14 +159,52 @@ data:
     #!/bin/bash
     set -euo pipefail
 
-    if [ ! -f "$PGDATA/standby.signal" ]; then
-        echo "[INIT] Not a standby node, skipping initialization"
+    # This script is called by the postgres init container when a pod is initialized as a standby node.
+    # It will perform a base backup from the primary node to initialize the standby node.
+    NS=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
+    PRIMARY={{ include "postgres.primaryName" .}}.$NS.svc.cluster.local
+    # here we can't use k8s api because the pod is a postgres legacy image without wget 
+    # so use what's as been provide by previous init script
+    ROLE=$(cat {{ .Values.postgresql.persistence.mountPath }}/bootstrap-role)
+
+    if [ -f "$PGDATA/PG_VERSION" ]; then
+        echo "Already initialized, skipping replication setup!"
         exit 0
     fi
 
-    echo "[INIT] Initializing standby node..."
-    pg_basebackup -h $PRIMARY_HOST -p $POSTGRES_PORT -U $POSTGRES_USER -D $PGDATA -Fp -Xs -P -R
-    echo "[INIT] Standby node initialized successfully"
+    if [ "$ROLE" = "data-primary" ]; then
+      echo "I am the Primary then skipping replication setup!"
+      exit 0
+    fi
+
+    echo "I am a Replica, starting replication..."
+    echo "Waiting for primary to be ready..."
+
+    until pg_isready -h "$PRIMARY" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -p $POSTGRES_PORT >/dev/null 2>&1 && \
+        psql -h "$PRIMARY" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -p $POSTGRES_PORT -tAc "SELECT 1" >/dev/null 2>&1; do
+      echo "Waiting for primary to be ready..."
+      sleep 5
+    done
+
+    echo "Primary is ready..."
+
+    until pg_basebackup \
+      -d "host=${PRIMARY} user=${POSTGRES_USER} dbname=replication port=${POSTGRES_PORT} application_name=${POD_NAME}" \
+      -D $PGDATA  -vP \
+      --wal-method=stream; 
+      do
+        echo "Base backup failed, retrying..."
+        sleep 5
+    done
+
+    touch $PGDATA/standby.signal
+    cat > "$PGDATA/postgresql.auto.conf" <<EOF
+    primary_conninfo = 'host=${PRIMARY} port=${POSTGRES_PORT} user=${POSTGRES_USER} application_name=${POD_NAME} dbname=replication'
+    EOF
+    chmod -R 700 $PGDATA && \
+    chown -R {{ .Values.postgresql.containerSecurityContext.runAsUser }}:{{ .Values.postgresql.containerSecurityContext.runAsGroup }} $PGDATA
+    echo "Base backup completed, replication setup is done."
+    exit 0
   check-node-status.sh: |
     #!/bin/bash
     set -euo pipefail
