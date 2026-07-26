@@ -61,6 +61,19 @@ spec:
           imagePullPolicy: {{ include "helper.images.pullPolicy" (dict "imageRoot" .Values.postgresql.initImage "global" .Values.global) }}
           securityContext:
             runAsUser: 0
+          env:
+            - name: PGDATA
+              value: {{ printf "%s/pgdata" .Values.postgresql.persistence.mountPath | quote }}
+            - name: POSTGRES_PORT
+              value: {{ .Values.postgresql.containerPort | quote }}
+            - name: POSTGRES_USER
+              value: {{ .Values.global.pgDbUser | quote }}
+            - name: POSTGRES_DB
+              value: {{ .Values.global.pgDbName | quote }}
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
           command:
             - sh
           args:
@@ -124,25 +137,13 @@ spec:
 
               FOLDER={{ .Values.postgresql.persistence.mountPath }}
               echo "Creating folder $FOLDER structure and setting permissions"
-              mkdir -p $FOLDER/pgdata $FOLDER/conf && \
-              chmod 700 $FOLDER/pgdata $FOLDER/conf && \
-              chown {{ .Values.postgresql.containerSecurityContext.runAsUser }}:{{ .Values.postgresql.containerSecurityContext.runAsGroup }} $FOLDER/pgdata $FOLDER/conf
+              mkdir -p $FOLDER/pgdata $FOLDER/conf $FOLDER/scripts && \
+              chmod 700 $FOLDER/pgdata $FOLDER/conf $FOLDER/scripts && \
+              chown {{ .Values.postgresql.containerSecurityContext.runAsUser }}:{{ .Values.postgresql.containerSecurityContext.runAsGroup }} \
+                $FOLDER/pgdata $FOLDER/conf $FOLDER/scripts
               mkdir -p /var/run/postgresql && \
               chmod 777 /var/run/postgresql && \
               chown {{ .Values.postgresql.containerSecurityContext.runAsUser }}:{{ .Values.postgresql.containerSecurityContext.runAsGroup }} /var/run/postgresql
-          env:
-            - name: PGDATA
-              value: {{ printf "%s/pgdata" .Values.postgresql.persistence.mountPath | quote }}
-            - name: POSTGRES_PORT
-              value: {{ .Values.postgresql.containerPort | quote }}
-            - name: POSTGRES_USER
-              value: {{ .Values.global.pgDbUser | quote }}
-            - name: POSTGRES_DB
-              value: {{ .Values.global.pgDbName | quote }}
-            - name: POD_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
           volumeMounts:
             - name: data
               mountPath: {{ .Values.postgresql.persistence.mountPath }}
@@ -155,6 +156,17 @@ spec:
           imagePullPolicy: {{ include "helper.images.pullPolicy" (dict "imageRoot" .Values.postgresql.image "global" .Values.global "chart" .Chart) }}
           securityContext:
             runAsUser: 0
+          env:
+            - name: PGDATA
+              value: {{ printf "%s/pgdata" .Values.postgresql.persistence.mountPath | quote }}
+            - name: POSTGRES_PORT
+              value: {{ .Values.postgresql.containerPort | quote }}
+            - name: POSTGRES_USER
+              value: {{ .Values.global.pgDbUser | quote }}
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
           command:
             - bash
           args:
@@ -189,23 +201,9 @@ spec:
               chown -R {{ .Values.postgresql.containerSecurityContext.runAsUser }}:{{ .Values.postgresql.containerSecurityContext.runAsGroup }} $FOLDER/pgdata
               echo "Base backup completed, replication setup is done."
               exit 0
-          env:
-            - name: PGDATA
-              value: {{ printf "%s/pgdata" .Values.postgresql.persistence.mountPath | quote }}
-            - name: POSTGRES_PORT
-              value: {{ .Values.postgresql.containerPort | quote }}
-            - name: POSTGRES_USER
-              value: {{ .Values.global.pgDbUser | quote }}
-            - name: POD_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
           volumeMounts:
             - name: data
               mountPath: {{ .Values.postgresql.persistence.mountPath }}
-            - name: scripts
-              mountPath: {{ .Values.postgresql.persistence.mountPath }}/check-node-status.sh
-              subPath: check-node-status.sh
         {{- end }}
       containers:
         - name: {{ include "helper.names.fullname" . }}
@@ -258,7 +256,7 @@ spec:
                 - sh
                 - -c
                 {{- if .Values.pgpool.enable }}
-                - {{ .Values.postgresql.persistence.mountPath }}/check-node-status.sh
+                - {{ .Values.postgresql.persistence.mountPath }}/scripts/check-node-status.sh
                 {{- else }}
                 - |
                   pg_isready -U $POSTGRES_USER -d $POSTGRES_DB -p $POSTGRES_PORT && \
@@ -291,7 +289,7 @@ spec:
               subPath: postgresql.conf
               readOnly: true
             - name: scripts
-              mountPath: {{ .Values.postgresql.persistence.mountPath }}/check-node-status.sh
+              mountPath: {{ .Values.postgresql.persistence.mountPath }}/scripts/check-node-status.sh
               subPath: check-node-status.sh
               readOnly: true
             - name: dev-shm
