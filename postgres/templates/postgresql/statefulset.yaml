@@ -97,9 +97,9 @@ spec:
               USER={{ .Values.postgresql.containerSecurityContext.runAsUser }}
               GROUP={{ .Values.postgresql.containerSecurityContext.runAsGroup }}
               echo "Creating folder $FOLDER structure and setting permissions."
-              mkdir -p $FOLDER/pgdata $FOLDER/conf $FOLDER/scripts && \
-              chmod 700 $FOLDER/pgdata $FOLDER/conf $FOLDER/scripts && \
-              chown ${USER}:${GROUP} $FOLDER/pgdata $FOLDER/conf $FOLDER/scripts
+              mkdir -p $FOLDER/pgdata $FOLDER/conf && \
+              chmod 700 $FOLDER/pgdata $FOLDER/conf && \
+              chown ${USER}:${GROUP} $FOLDER/pgdata $FOLDER/conf
               mkdir -p /var/run/postgresql && \
               chmod 777 /var/run/postgresql && \
               chown ${USER}:${GROUP} /var/run/postgresql

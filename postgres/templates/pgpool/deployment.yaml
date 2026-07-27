@@ -95,7 +95,7 @@ spec:
                 echo "backend_port${i} = ${POSTGRES_PORT}" >> $PGPOOL_DATA/conf/backends.conf
                 echo "backend_weight${i} = 1" >> $PGPOOL_DATA/conf/backends.conf
                 echo "backend_flag${i} = 'ALLOW_TO_FAILOVER'" >> $PGPOOL_DATA/conf/backends.conf
-                echo "backend_app_name${i} = '${HOST}'" >> $PGPOOL_DATA/conf/backends.conf
+                echo "backend_application_name${i} = '${HOST}'" >> $PGPOOL_DATA/conf/backends.conf
               done
 
               chown -R {{ .Values.pgpool.containerSecurityContext.runAsUser }}:{{ .Values.pgpool.containerSecurityContext.runAsGroup }} $PGPOOL_DATA/conf/backends.conf
