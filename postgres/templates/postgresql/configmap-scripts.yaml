@@ -142,6 +142,60 @@ data:
 
     echo "[FAILOVER] Promotion timeout"
     exit 1
+  pgpool-watcher.sh: |
+    #!/bin/bash
+    set -euo pipefail
+
+    echo "Starting pgpool watcher..."
+    
+    echo "Waiting for pgpool to be ready..."
+    until pcp_node_count -h localhost -U $PGPOOL_USER -p 9898 -w > /dev/null 2>&1; do
+      echo "Waiting for pgpool to be ready..."
+      sleep 5
+    done
+
+    echo "Pgpool is ready..."
+
+    while true; do
+      for id in $(seq 0 {{ .Values.pgpool.maxBackendNodes }}); do
+        INFO=$(pcp_node_info -h localhost -U $PGPOOL_USER -p 9898 -w -n $id)
+        STATUS=$(echo $INFO | awk '{print $3}')
+        DBHOST=$(echo $INFO | awk '{print $1}')
+
+        if [ "$STATUS" -eq 3 ]; then
+          
+          if pg_isready -h "$DBHOST" -p $POSTGRES_PORT -U "$POSTGRES_USER" -d "$POSTGRES_DB" >/dev/null 2>&1 && \
+              psql -h "$DBHOST" -p $POSTGRES_PORT -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "SELECT 1" >/dev/null 2>&1; then
+            READY=1
+          else
+            READY=0
+          fi
+
+          # echo "Node $id ($DBHOST): status=$STATUS, ready=$READY"
+          
+          # ----------------------------
+          # ATTACH LOGIC
+          # ----------------------------
+          if [ "$READY" -eq 1 ]; then
+            echo "ATTACH node $id ($DBHOST)"
+
+            pcp_attach_node \
+              -h localhost \
+              -U $PGPOOL_USER \
+              -p 9898 \
+              -w \
+              -n $id
+          fi
+
+        fi
+
+      done
+      
+      sleep 10 &
+      wait $!
+    done
+
+    echo "pgpool watcher stopped."
   init-primary.sh: |
     #!/bin/bash
     set -euo pipefail
