@@ -39,8 +39,6 @@ spec:
               value: {{ .Values.global.timezone | quote }}
             - name: PGPOOL_DATA
               value: /opt/pgpool
-            - name: POSTGRES_PORT
-              value: {{ .Values.postgresql.containerPort | quote }}
             - name: PGPOOL_USER
               value: {{ .Values.pgpool.pgPoolUser | quote }}
             - name: PGPOOL_PASSWORD
@@ -48,6 +46,8 @@ spec:
                 secretKeyRef:
                   name: {{ include "helper.names.fullname" . }}
                   key: PGPOOL_PASSWORD
+            - name: POSTGRES_PORT
+              value: {{ .Values.postgresql.containerPort | quote }}
             - name: POSTGRES_DB
               value: {{ .Values.global.pgDbName }}
             - name: POSTGRES_USER
@@ -87,6 +87,8 @@ spec:
               value: {{ .Values.global.timezone | quote }}
             - name: PGPOOL_DATA
               value: /opt/pgpool
+            - name: PGPOOL_USER
+              value: {{ .Values.pgpool.pgPoolUser | quote }}
             - name: POSTGRES_PORT
               value: {{ .Values.postgresql.containerPort | quote }}
             - name: POSTGRES_DB
@@ -98,6 +100,41 @@ spec:
                 secretKeyRef:
                   name: {{ include "helper.names.fullname" . }}
                   key: POSTGRES_PASSWORD
+          {{- if not .Values.pgpool.diagnosticModeEnabled }}
+          startingProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - |
+                  pcp_node_count -h localhost -U $PGPOOL_USER -p 9898 -w > /dev/null 2>&1
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - |
+                  pcp_node_count -h localhost -U $PGPOOL_USER -p 9898 -w > /dev/null 2>&1
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - |
+                  pcp_node_count -h localhost -U $PGPOOL_USER -p 9898 -w > /dev/null 2>&1
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          {{- end }}
           volumeMounts:
             - name: data
               mountPath: /opt/pgpool
@@ -105,7 +142,7 @@ spec:
               mountPath: /opt/pgpool/conf/pgpool.conf
               subPath: pgpool.conf
             - name: scripts
-              mountPath: /opt/pgpool/failover.sh
+              mountPath: /opt/scripts/failover.sh
               subPath: failover.sh
         - name: {{ include "postgres.pgpoolName" . }}-watcher
           image: {{ include "helper.images.image" (dict "imageRoot" .Values.pgpool.image "global" .Values.global) }}
