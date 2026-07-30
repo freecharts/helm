@@ -119,7 +119,6 @@ spec:
                 - -c
                 - |
                   pcp_node_count -h localhost -U $PGPOOL_USER -p 9898 -w > /dev/null 2>&1
-            initialDelaySeconds: 5
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 6
@@ -130,7 +129,6 @@ spec:
                 - -c
                 - |
                   pcp_node_count -h localhost -U $PGPOOL_USER -p 9898 -w > /dev/null 2>&1
-            initialDelaySeconds: 5
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 6

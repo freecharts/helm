@@ -198,6 +198,10 @@ spec:
                 - -c
                 - |
                   pg_isready -U $POSTGRES_USER -d $POSTGRES_DB -p $POSTGRES_PORT
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
           readinessProbe: {{- include "helper.values.render" ( dict "value" .Values.postgresql.readinessProbe "context" $ ) | nindent 12 }}
             exec:
               command:
@@ -210,6 +214,9 @@ spec:
                   pg_isready -U $POSTGRES_USER -d $POSTGRES_DB -p $POSTGRES_PORT && \
                   psql -U $POSTGRES_USER -d $POSTGRES_DB -p $POSTGRES_PORT -c "SELECT 1" >/dev/null 2>&1
                 {{- end }}
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
           livenessProbe: {{- include "helper.values.render" ( dict "value" .Values.postgresql.livenessProbe "context" $ ) | nindent 12 }}
             exec:
               command:
@@ -218,6 +225,9 @@ spec:
                 - |
                   pg_isready -U $POSTGRES_USER -d $POSTGRES_DB -p $POSTGRES_PORT && \
                   psql -U $POSTGRES_USER -d $POSTGRES_DB -p $POSTGRES_PORT -c "SELECT 1" >/dev/null 2>&1
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
           {{- end }}
           {{- if .Values.postgresql.resources }}
           resources: {{- include "helper.values.render" (dict "value" .Values.postgresql.resources "context" $) | nindent 12 }}
