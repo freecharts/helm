@@ -22,4 +22,38 @@ Usage:
 {{- end }}
 {{- end -}}
 
+{{/*
+Returns a Base64-encoded value for a Secret.
+
+Parameters:
+  secretName : Secret name
+  namespace  : Secret namespace
+  key        : Key to retrieve from the Secret
+  value      : Value provided from values.yaml (plain text)
+  length     : Generated password length (optional, default: 32)
+
+Priority order:
+1. Existing value from the Secret.
+2. Value provided in values.yaml.
+3. Newly generated random password.
+*/}}
+{{- define "helper.secret.value" -}}
+{{- $secret := lookup "v1" "Secret" .namespace .secretName -}}
+{{- $pwd := "" -}}
+
+{{- if $secret }}
+  {{- $pwd = get $secret.data .key }}
+{{- end }}
+
+{{- if empty $pwd }}
+  {{- if not (empty .value) }}
+    {{- $pwd = .value | b64enc }}
+  {{- else }}
+    {{- $pwd = randAlphaNum (default 32 .length) | b64enc }}
+  {{- end }}
+{{- end }}
+
+{{- $pwd -}}
+
+{{- end }}
 
