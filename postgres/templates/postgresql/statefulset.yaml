@@ -14,7 +14,11 @@ metadata:
     role: data
 spec:
   serviceName: {{ printf "%s-hl" (include "helper.names.fullname" .) }}
+  {{- if .Values.pgpool.enable }}
   replicas: {{ .Values.postgresql.replicas }}
+  {{- else -}}
+  replicas: 1
+  {{- end }}
   podManagementPolicy: {{ .Values.postgresql.podManagementPolicy | quote }}
   updateStrategy: {{- toYaml .Values.postgresql.updateStrategy | nindent 4 }}
   selector:

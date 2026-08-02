@@ -19,11 +19,22 @@ global:
   ## @param global.storageClass Global default StorageClass for Persistent Volume(s)
   storageClass: ""
   defaultStorageClass: ""
+  ## Postgres authentication parameters, more information can be found here: https://www.postgresql.org/docs/current/auth-pg-hba-conf.html
   pgDbName: "postgres"
   pgDbUser: "postgres"
   ## @param global.pgDbPassword This sets the PostgreSQL password, more information can be found here: https://www.postgresql.org/docs/current/app-psql.html
   ## Leave blank to generate a random password, or set a value to use a specific
   pgDbPassword: ""
+  ## @param global.pgRepUser This sets the repliaction user, more information can be found here: https://repmgr.org/docs/current/pgpool.html
+  pgRepUser: "repusr"
+  ## @param global.pgRepPassword This sets the replication user password
+  ## Leave blank to generate a random password, or set a value to use a specific password
+  pgRepPassword: ""
+  ## @param pgpool.pgPoolUser This sets the pgpool user, more information can be found here: https://www.pgpool.net/docs/latest/en/html/configuring-pcp-conf.html
+  pgPoolUser: "pgpool"
+  ## @param pgpool.pgPoolPassword This sets the pgpool password, more information can be found here: https://www.pgpool.net/docs/latest/en/html/configuring-pcp-conf.html
+  ## Leave blank to generate a random password, or set a value to use a specific password.
+  pgPoolPassword: ""
 
 ## @param diagnosticMode Diagnostic mode in the deployment
 ##
@@ -233,11 +244,6 @@ pgpool:
     pullPolicy: ""
   ## @param pgpool.maxBackendNodes This will set the maximum replicaset exoected count in pg cluster.
   maxBackendNodes: 10
-  ## @param pgpool.pgPoolUser This sets the pgpool user, more information can be found here: https://www.pgpool.net/docs/latest/en/html/configuring-pcp-conf.html
-  pgPoolUser: "pgpool"
-  ## @param pgpool.pgPoolPassword This sets the pgpool password, more information can be found here: https://www.pgpool.net/docs/latest/en/html/configuring-pcp-conf.html
-  ## Leave blank to generate a random password, or set a value to use a specific password.
-  pgPoolPassword: ""
   ## @param pgpool.containerPort This sets the container port, more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#field-spec-ports
   containerPort: 5432
   ## @param pgpool.podSecurityContext Security context for PostgreSQL pods, 

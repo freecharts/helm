@@ -40,7 +40,7 @@ spec:
             - name: PGPOOL_DATA
               value: /opt/pgpool
             - name: PGPOOL_USER
-              value: {{ .Values.pgpool.pgPoolUser | quote }}
+              value: {{ .Values.global.pgPoolUser | quote }}
             - name: PGPOOL_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -88,7 +88,7 @@ spec:
             - name: PGPOOL_DATA
               value: /opt/pgpool
             - name: PGPOOL_USER
-              value: {{ .Values.pgpool.pgPoolUser | quote }}
+              value: {{ .Values.global.pgPoolUser | quote }}
             - name: POSTGRES_PORT
               value: {{ .Values.postgresql.containerPort | quote }}
             - name: POSTGRES_DB
@@ -152,7 +152,7 @@ spec:
             - name: PGPOOL_DATA
               value: /opt/pgpool
             - name: PGPOOL_USER
-              value: {{ .Values.pgpool.pgPoolUser }}
+              value: {{ .Values.global.pgPoolUser }}
             - name: POSTGRES_PORT
               value: {{ .Values.postgresql.containerPort | quote }}
             - name: POSTGRES_DB
