@@ -307,12 +307,8 @@ data:
     cat > "$PGDATA/postgresql.auto.conf" <<EOF
     primary_conninfo = 'host=${PRIMARY} port=${POSTGRES_PORT} user=${POSTGRES_USER} application_name=${POD_NAME} dbname=replication passfile=${PGMOUNT}/conf/.pgpass'
     EOF
-    cat > ${PGMOUNT}/conf/.pgpass <<EOF
-    ${PRIMARY}:${POSTGRES_PORT}:replication:${POSTGRES_USER}:${PGPASSWORD}
-    EOF
-    chmod 600 ${PGMOUNT}/conf/.pgpass
     chmod -R 700 $PGDATA && \
-    chown -R ${USER}:${GROUP} $PGDATA ${PGMOUNT}/conf/.pgpass
+    chown -R ${USER}:${GROUP} $PGDATA
     echo "Base backup completed, replication setup is done."
     exit 0
   check-node-status.sh: |

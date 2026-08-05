@@ -74,11 +74,10 @@ spec:
               value: {{ .Values.global.pgDbName | quote }}
             - name: POSTGRES_USER
               value: {{ .Values.global.pgDbUser | quote }}
-            - name: PGPASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "helper.names.fullname" . }}
-                  key: POSTGRES_PASSWORD
+            {{- if .Values.pgpool.enable }}
+            - name: POSTGRES_REPUSER
+              value: {{ .Values.global.pgRepUser | quote }}
+            {{- end }}
             - name: POD_NAME
               valueFrom:
                 fieldRef:
@@ -88,25 +87,35 @@ spec:
           args:
             - -c
             - |
+              PGMOUNT={{ .Values.postgresql.persistence.mountPath }}
+              USER={{ .Values.postgresql.containerSecurityContext.runAsUser }}
+              GROUP={{ .Values.postgresql.containerSecurityContext.runAsGroup }}
+              NS=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
+              PRIMARY={{ include "postgres.primaryName" .}}.$NS.svc.cluster.local
+
+              if [ ! -f "$PGDATA/PG_VERSION" ]; then
+                echo "Creating folder $PGMOUNT structure and setting permissions."
+                mkdir -p $PGMOUNT/pgdata $PGMOUNT/conf && \
+                chmod 700 $PGMOUNT/pgdata $PGMOUNT/conf && \
+                chown ${USER}:${GROUP} $PGMOUNT/pgdata $PGMOUNT/conf
+                mkdir -p /var/run/postgresql && \
+                chmod 777 /var/run/postgresql && \
+                chown ${USER}:${GROUP} /var/run/postgresql
+              else
+                echo "Already initialized, skipping folder structure creation"
+              fi
+
+              echo "#hostname:port:database:username:password" > $PGMOUNT/conf/.pgpass && \
+              echo "*:${POSTGRES_PORT}:${POSTGRES_DB}:${POSTGRES_USER}:$(cat /run/secrets/postgresql/POSTGRES_PASSWORD)" >> $PGMOUNT/conf/.pgpass && \
+              {{- if .Values.pgpool.enable }}
+              echo "${PRIMARY}:${POSTGRES_PORT}:replication:${POSTGRES_REPUSER}:$(cat /run/secrets/postgresql/POSTGRES_REPUSER_PASSWORD)" >> $PGMOUNT/conf/.pgpass
+              {{- end }}
+              chmod 600 $PGMOUNT/conf/.pgpass && \
+              chown ${USER}:${GROUP} $PGMOUNT/conf/.pgpass
+
               {{- if .Values.pgpool.enable }}
               /opt/scripts/init-primary.sh
               {{- end }}
-
-              if [ -f "$PGDATA/PG_VERSION" ]; then
-                echo "Already initialized, skipping folder structure creation"
-                exit 0
-              fi
-
-              FOLDER={{ .Values.postgresql.persistence.mountPath }}
-              USER={{ .Values.postgresql.containerSecurityContext.runAsUser }}
-              GROUP={{ .Values.postgresql.containerSecurityContext.runAsGroup }}
-              echo "Creating folder $FOLDER structure and setting permissions."
-              mkdir -p $FOLDER/pgdata $FOLDER/conf && \
-              chmod 700 $FOLDER/pgdata $FOLDER/conf && \
-              chown ${USER}:${GROUP} $FOLDER/pgdata $FOLDER/conf
-              mkdir -p /var/run/postgresql && \
-              chmod 777 /var/run/postgresql && \
-              chown ${USER}:${GROUP} /var/run/postgresql
           volumeMounts:
             - name: data
               mountPath: {{ .Values.postgresql.persistence.mountPath }}
@@ -119,6 +128,9 @@ spec:
             - name: empty-dir
               mountPath: /var/run
               subPath: run
+            - name: secrets
+              mountPath: /run/secrets/postgresql
+              readOnly: true
         {{- if .Values.pgpool.enable }}
         - name: init-replication
           image: {{ include "helper.images.image" (dict "imageRoot" .Values.postgresql.image "global" .Values.global "chart" .Chart) }}
@@ -274,6 +286,10 @@ spec:
           configMap:
             name: {{ include "helper.names.fullname" . }}-scripts
             defaultMode: 0550
+        - name: secrets
+          secret:
+            secretName: {{ include "helper.names.fullname" . }}
+            defaultMode: 0440
   volumeClaimTemplates:
     - apiVersion: v1
       kind: PersistentVolumeClaim
