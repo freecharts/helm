@@ -193,11 +193,8 @@ spec:
               value: {{ .Values.global.pgDbName | quote }}
             - name: POSTGRES_USER
               value: {{ .Values.global.pgDbUser | quote }}
-            - name: POSTGRES_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "helper.names.fullname" . }}
-                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_PASSWORD_FILE
+              value: /run/secrets/postgresql/POSTGRES_PASSWORD
             - name: POSTGRES_INITDB_ARGS
               value: >-
                 -c include_if_exists={{ printf "%s/conf/postgresql.conf" .Values.postgresql.persistence.mountPath | quote }}
@@ -271,6 +268,9 @@ spec:
             - name: empty-dir
               mountPath: /var/run/postgresql
               subPath: run/postgresql
+            - name: secrets
+              mountPath: /run/secrets/postgresql
+              readOnly: true
       volumes:
         - name: empty-dir
           emptyDir: {}
