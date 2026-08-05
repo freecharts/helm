@@ -328,7 +328,7 @@ data:
     HOST="${POD_NAME}.{{ include "postgres.headlessName" . }}.${NS}.svc.cluster.local"
     SERVICE="{{ include "helper.names.fullname" . }}.${NS}.svc.cluster.local"
 
-    PGPASSWORD=$POSTGRES_PASSWORD && psql -h $SERVICE \
+    psql -h $SERVICE \
         -U $POSTGRES_USER \
         -d $POSTGRES_DB \
         -Atc "SHOW POOL_NODES" |

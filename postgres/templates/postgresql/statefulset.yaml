@@ -146,11 +146,8 @@ spec:
               value: {{ .Values.global.pgDbName | quote }}
             - name: POSTGRES_USER
               value: {{ .Values.global.pgDbUser | quote }}
-            - name: PGPASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "helper.names.fullname" . }}
-                  key: POSTGRES_PASSWORD
+            - name: PGPASSFILE
+              value: {{ printf "%s/conf/.pgpass" .Values.postgresql.persistence.mountPath | quote }}
             - name: POD_NAME
               valueFrom:
                 fieldRef:
@@ -195,6 +192,8 @@ spec:
               value: {{ .Values.global.pgDbUser | quote }}
             - name: POSTGRES_PASSWORD_FILE
               value: /run/secrets/postgresql/POSTGRES_PASSWORD
+            - name: PGPASSFILE
+              value: {{ printf "%s/conf/.pgpass" .Values.postgresql.persistence.mountPath | quote }}
             - name: POSTGRES_INITDB_ARGS
               value: >-
                 -c include_if_exists={{ printf "%s/conf/postgresql.conf" .Values.postgresql.persistence.mountPath | quote }}
