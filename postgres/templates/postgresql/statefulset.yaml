@@ -74,8 +74,10 @@ spec:
               value: {{ .Values.global.pgDbName | quote }}
             - name: POSTGRES_USER
               value: {{ .Values.global.pgDbUser | quote }}
+            - name: POSTGRES_CHECK_USER
+              value: {{ .Values.global.pgCheckUser | quote }}
             {{- if .Values.pgpool.enable }}
-            - name: POSTGRES_REPUSER
+            - name: POSTGRES_REP_USER
               value: {{ .Values.global.pgRepUser | quote }}
             {{- end }}
             - name: POD_NAME
@@ -107,8 +109,9 @@ spec:
 
               echo "#hostname:port:database:username:password" > $PGMOUNT/conf/.pgpass && \
               echo "*:${POSTGRES_PORT}:${POSTGRES_DB}:${POSTGRES_USER}:$(cat /run/secrets/postgresql/POSTGRES_PASSWORD)" >> $PGMOUNT/conf/.pgpass && \
+              echo "*:${POSTGRES_PORT}:${POSTGRES_DB}:${POSTGRES_CHECK_USER}:$(cat /run/secrets/postgresql/POSTGRES_CHECK_PASSWORD)" >> $PGMOUNT/conf/.pgpass && \
               {{- if .Values.pgpool.enable }}
-              echo "${PRIMARY}:${POSTGRES_PORT}:replication:${POSTGRES_REPUSER}:$(cat /run/secrets/postgresql/POSTGRES_REPUSER_PASSWORD)" >> $PGMOUNT/conf/.pgpass
+              echo "${PRIMARY}:${POSTGRES_PORT}:replication:${POSTGRES_REP_USER}:$(cat /run/secrets/postgresql/POSTGRES_REP_PASSWORD)" >> $PGMOUNT/conf/.pgpass
               {{- end }}
               chmod 600 $PGMOUNT/conf/.pgpass && \
               chown ${USER}:${GROUP} $PGMOUNT/conf/.pgpass
