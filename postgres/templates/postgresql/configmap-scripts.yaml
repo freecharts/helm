@@ -32,12 +32,12 @@ data:
     chown -R $USER:$GROUP $PGPOOL_DATA/conf $PGPOOL_DATA/logs $PGPOOL_DATA/run
 
     echo "#hostname:port:database:username:password" > $PGPASSFILE && \
-    echo "*:${POSTGRES_PORT}:${POSTGRES_DB}:${POSTGRES_USER}:$(cat /run/secrets/postgresql/POSTGRES_PASSWORD)" >> $PGPASSFILE && \
+    echo "*:${POSTGRES_PORT}:${POSTGRES_DB}:${POSTGRES_CHECK_USER}:$(cat /run/secrets/postgresql/POSTGRES_CHECK_PASSWORD)" >> $PGPASSFILE && \
     chmod 600 $PGPASSFILE && \
     chown ${USER}:${GROUP} $PGPASSFILE
 
     echo "Waiting for primary to be ready..."
-    until pg_isready -h $PRIMARY -p $POSTGRES_PORT -d $POSTGRES_DB -U $POSTGRES_USER; do
+    until pg_isready -h $PRIMARY -p $POSTGRES_PORT -d $POSTGRES_DB -U $POSTGRES_CHECK_USER; do
         echo "Waiting for primary to be ready..."
         sleep 5
     done
@@ -171,8 +171,8 @@ data:
 
         if [ "$STATUS" -eq 3 ]; then
           
-          if pg_isready -h "$DBHOST" -p $POSTGRES_PORT -U "$POSTGRES_USER" -d "$POSTGRES_DB" >/dev/null 2>&1 && \
-              psql -h "$DBHOST" -p $POSTGRES_PORT -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "SELECT 1" >/dev/null 2>&1; then
+          if pg_isready -h "$DBHOST" -p $POSTGRES_PORT -U "$POSTGRES_CHECK_USER" -d "$POSTGRES_DB" >/dev/null 2>&1 && \
+              psql -h "$DBHOST" -p $POSTGRES_PORT -U "$POSTGRES_CHECK_USER" -d "$POSTGRES_DB" -tAc "SELECT 1" >/dev/null 2>&1; then
             READY=1
           else
             READY=0

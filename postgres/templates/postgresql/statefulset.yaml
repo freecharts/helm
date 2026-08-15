@@ -137,6 +137,7 @@ spec:
                   END IF;
                   GRANT CONNECT ON DATABASE ${POSTGRES_DB} TO ${POSTGRES_CHECK_USER};
                   {{- if .Values.pgpool.enable }}
+                  GRANT pg_monitor TO ${POSTGRES_CHECK_USER};
                   IF NOT EXISTS (
                       SELECT 1
                       FROM pg_roles
