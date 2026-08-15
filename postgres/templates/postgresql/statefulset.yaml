@@ -128,9 +128,14 @@ spec:
                       CREATE ROLE ${POSTGRES_CHECK_USER}
                           WITH
                           LOGIN
-                          REPLICATION
+                          PASSWORD '$(cat /run/secrets/postgresql/POSTGRES_CHECK_PASSWORD)';
+                    ELSE
+                      ALTER ROLE ${POSTGRES_CHECK_USER}
+                          WITH
+                          LOGIN
                           PASSWORD '$(cat /run/secrets/postgresql/POSTGRES_CHECK_PASSWORD)';
                   END IF;
+                  GRANT CONNECT ON DATABASE ${POSTGRES_DB} TO ${POSTGRES_CHECK_USER};
                   {{- if .Values.pgpool.enable }}
                   IF NOT EXISTS (
                       SELECT 1
@@ -142,13 +147,17 @@ spec:
                           LOGIN
                           REPLICATION
                           PASSWORD '$(cat /run/secrets/postgresql/POSTGRES_REP_PASSWORD)';
+                    ELSE
+                      ALTER ROLE ${POSTGRES_REP_USER}
+                          WITH
+                          LOGIN
+                          REPLICATION
+                          PASSWORD '$(cat /run/secrets/postgresql/POSTGRES_REP_PASSWORD)';
                   END IF;
                   {{- end }}
               END
               \$\$;
               EOF
-
-              # docker-entrypoint-initdb.d
 
               {{- if .Values.pgpool.enable }}
               /opt/scripts/init-primary.sh
@@ -186,6 +195,8 @@ spec:
               value: {{ .Values.global.pgDbName | quote }}
             - name: POSTGRES_USER
               value: {{ .Values.global.pgDbUser | quote }}
+            - name: POSTGRES_CHECK_USER
+              value: {{ .Values.global.pgCheckUser | quote }}
             - name: PGPASSFILE
               value: {{ printf "%s/conf/.pgpass" .Values.postgresql.persistence.mountPath | quote }}
             - name: POD_NAME
@@ -230,6 +241,8 @@ spec:
               value: {{ .Values.global.pgDbName | quote }}
             - name: POSTGRES_USER
               value: {{ .Values.global.pgDbUser | quote }}
+            - name: POSTGRES_CHECK_USER
+              value: {{ .Values.global.pgCheckUser | quote }}
             - name: POSTGRES_PASSWORD_FILE
               value: /run/secrets/postgresql/POSTGRES_PASSWORD
             - name: PGPASSFILE
@@ -249,7 +262,7 @@ spec:
                 - sh
                 - -c
                 - |
-                  pg_isready -U $POSTGRES_USER -d $POSTGRES_DB -p $POSTGRES_PORT
+                  pg_isready -U $POSTGRES_CHECK_USER -d $POSTGRES_DB -p $POSTGRES_PORT
             initialDelaySeconds: 5
             periodSeconds: 10
             timeoutSeconds: 5
@@ -263,8 +276,8 @@ spec:
                 - /opt/scripts/check-node-status.sh
                 {{- else }}
                 - |
-                  pg_isready -U $POSTGRES_USER -d $POSTGRES_DB -p $POSTGRES_PORT && \
-                  psql -U $POSTGRES_USER -d $POSTGRES_DB -p $POSTGRES_PORT -c "SELECT 1" >/dev/null 2>&1
+                  pg_isready -U $POSTGRES_CHECK_USER -d $POSTGRES_DB -p $POSTGRES_PORT && \
+                  psql -U $POSTGRES_CHECK_USER -d $POSTGRES_DB -p $POSTGRES_PORT -c "SELECT 1" >/dev/null 2>&1
                 {{- end }}
             periodSeconds: 10
             timeoutSeconds: 5
@@ -275,8 +288,8 @@ spec:
                 - sh
                 - -c
                 - |
-                  pg_isready -U $POSTGRES_USER -d $POSTGRES_DB -p $POSTGRES_PORT && \
-                  psql -U $POSTGRES_USER -d $POSTGRES_DB -p $POSTGRES_PORT -c "SELECT 1" >/dev/null 2>&1
+                  pg_isready -U $POSTGRES_CHECK_USER -d $POSTGRES_DB -p $POSTGRES_PORT && \
+                  psql -U $POSTGRES_CHECK_USER -d $POSTGRES_DB -p $POSTGRES_PORT -c "SELECT 1" >/dev/null 2>&1
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 6
