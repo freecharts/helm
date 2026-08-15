@@ -26,13 +26,13 @@ global:
   ## Leave blank to generate a random password, or set a value to use a specific
   pgDbPassword: ""
   ## @param global.pgCheckUser This sets the check user, more information can be found here: https://repmgr.org/docs/current/pgpool.html
-  pgCheckUser: "pg_checkusr"
+  pgCheckUser: "pgcheckusr"
   ## @param global.pgCheckPassword This sets the check user password
   ## Leave blank to generate a random password, or set a value to use a specific password
   pgCheckPassword: ""
   ## @param global.pgRepUser This sets the repliaction user, more information can be found here: https://repmgr.org/docs/current/pgpool.html
   ## Useless if pgpool is disabled, but must be set if pgpool is enabled
-  pgRepUser: "pg_repusr"
+  pgRepUser: "pgrepusr"
   ## @param global.pgRepPassword This sets the replication user password
   ## Leave blank to generate a random password, or set a value to use a specific password
   pgRepPassword: ""

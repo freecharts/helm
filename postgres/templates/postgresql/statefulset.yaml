@@ -197,6 +197,8 @@ spec:
               value: {{ .Values.global.pgDbUser | quote }}
             - name: POSTGRES_CHECK_USER
               value: {{ .Values.global.pgCheckUser | quote }}
+            - name: POSTGRES_REP_USER
+              value: {{ .Values.global.pgRepUser | quote }}
             - name: PGPASSFILE
               value: {{ printf "%s/conf/.pgpass" .Values.postgresql.persistence.mountPath | quote }}
             - name: POD_NAME
