@@ -116,6 +116,40 @@ spec:
               chmod 600 $PGMOUNT/conf/.pgpass && \
               chown ${USER}:${GROUP} $PGMOUNT/conf/.pgpass
 
+              cat > /sql/init-users.sql <<EOF
+              DO
+              \$\$
+              BEGIN
+                  IF NOT EXISTS (
+                      SELECT 1
+                      FROM pg_roles
+                      WHERE rolname = '${POSTGRES_CHECK_USER}'
+                  ) THEN
+                      CREATE ROLE ${POSTGRES_CHECK_USER}
+                          WITH
+                          LOGIN
+                          REPLICATION
+                          PASSWORD '$(cat /run/secrets/postgresql/POSTGRES_CHECK_PASSWORD)';
+                  END IF;
+                  {{- if .Values.pgpool.enable }}
+                  IF NOT EXISTS (
+                      SELECT 1
+                      FROM pg_roles
+                      WHERE rolname = '${POSTGRES_REP_USER}'
+                  ) THEN
+                      CREATE ROLE ${POSTGRES_REP_USER}
+                          WITH
+                          LOGIN
+                          REPLICATION
+                          PASSWORD '$(cat /run/secrets/postgresql/POSTGRES_REP_PASSWORD)';
+                  END IF;
+                  {{- end }}
+              END
+              \$\$;
+              EOF
+
+              # docker-entrypoint-initdb.d
+
               {{- if .Values.pgpool.enable }}
               /opt/scripts/init-primary.sh
               {{- end }}
@@ -131,6 +165,9 @@ spec:
             - name: empty-dir
               mountPath: /var/run
               subPath: run
+            - name: empty-dir
+              mountPath: /sql
+              subPath: sql
             - name: secrets
               mountPath: /run/secrets/postgresql
               readOnly: true
@@ -270,6 +307,9 @@ spec:
             - name: empty-dir
               mountPath: /var/run/postgresql
               subPath: run/postgresql
+            - name: empty-dir
+              mountPath: /docker-entrypoint-initdb.d
+              subPath: sql
             - name: secrets
               mountPath: /run/secrets/postgresql
               readOnly: true
