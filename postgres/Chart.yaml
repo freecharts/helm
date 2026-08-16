@@ -19,9 +19,9 @@ annotations:
   licence: MIT License
 dependencies:
   - name: helper
-    version: 1.0.0
+    version: 1.0.1
     repository: "file://../helper"
-version: 1.0.3
+version: 1.0.4
 appVersion: "17.10"
 
 

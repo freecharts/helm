@@ -40,7 +40,9 @@ spec:
             - name: PGPOOL_DATA
               value: /opt/pgpool
             - name: PGPOOL_USER
-              value: {{ .Values.pgpool.pgPoolUser | quote }}
+              value: {{ .Values.global.pgPoolUser | quote }}
+            - name: PCPPASSFILE 
+              value: /opt/pgpool/.pcppass
             - name: PGPOOL_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -50,13 +52,10 @@ spec:
               value: {{ .Values.postgresql.containerPort | quote }}
             - name: POSTGRES_DB
               value: {{ .Values.global.pgDbName }}
-            - name: POSTGRES_USER
-              value: {{ .Values.global.pgDbUser | quote }}
-            - name: PGPASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "helper.names.fullname" . }}
-                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_CHECK_USER
+              value: {{ .Values.global.pgCheckUser | quote }}
+            - name: PGPASSFILE
+              value: /opt/pgpool/.pgpass
           command:
             - sh
           args:
@@ -69,6 +68,9 @@ spec:
             - name: scripts
               mountPath: /opt/scripts/init-pgpool.sh
               subPath: init-pgpool.sh
+              readOnly: true
+            - name: secrets
+              mountPath: /run/secrets/postgresql
               readOnly: true
       containers:
         - name: {{ include "postgres.pgpoolName" . }}
@@ -88,18 +90,19 @@ spec:
             - name: PGPOOL_DATA
               value: /opt/pgpool
             - name: PGPOOL_USER
-              value: {{ .Values.pgpool.pgPoolUser | quote }}
+              value: {{ .Values.global.pgPoolUser | quote }}
+            - name: PCPPASSFILE 
+              value: /opt/pgpool/.pcppass
             - name: POSTGRES_PORT
               value: {{ .Values.postgresql.containerPort | quote }}
             - name: POSTGRES_DB
               value: {{ .Values.global.pgDbName | quote }}
             - name: POSTGRES_USER
               value: {{ .Values.global.pgDbUser | quote }}
-            - name: PGPASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "helper.names.fullname" . }}
-                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_CHECK_USER
+              value: {{ .Values.global.pgCheckUser | quote }}
+            - name: PGPASSFILE
+              value: /opt/pgpool/.pgpass
           {{- if not .Values.pgpool.diagnosticModeEnabled }}
           startingProbe:
             exec:
@@ -152,18 +155,17 @@ spec:
             - name: PGPOOL_DATA
               value: /opt/pgpool
             - name: PGPOOL_USER
-              value: {{ .Values.pgpool.pgPoolUser }}
+              value: {{ .Values.global.pgPoolUser }}
+            - name: PCPPASSFILE 
+              value: /opt/pgpool/.pcppass
             - name: POSTGRES_PORT
               value: {{ .Values.postgresql.containerPort | quote }}
             - name: POSTGRES_DB
               value: {{ .Values.global.pgDbName | quote }}
-            - name: POSTGRES_USER
-              value: {{ .Values.global.pgDbUser | quote }}
-            - name: PGPASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "helper.names.fullname" . }}
-                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_CHECK_USER
+              value: {{ .Values.global.pgCheckUser | quote }}
+            - name: PGPASSFILE
+              value: /opt/pgpool/.pgpass
           command:
             - sh
           args:
@@ -188,4 +190,8 @@ spec:
           configMap:
             name: {{ include "helper.names.fullname" . }}-scripts
             defaultMode: 0550
+        - name: secrets
+          secret:
+            secretName: {{ include "helper.names.fullname" . }}
+            defaultMode: 0440
 {{- end -}}
