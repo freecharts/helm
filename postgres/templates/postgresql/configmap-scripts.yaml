@@ -218,7 +218,6 @@ data:
     SERVICE="{{ include "postgres.headlessName" . }}.$NS.svc.cluster.local"
     IPS=$(nslookup "$SERVICE" 2>/dev/null | awk '/^Address: / {print $2}')
     POD_EXISTS=0
-    PGMOUNT={{ .Values.postgresql.persistence.mountPath }}
 
     echo "data" > ${PGMOUNT}/bootstrap-role
 
@@ -256,8 +255,8 @@ data:
     else
       echo "I am a Standby, waiting for primary to be ready..."
       
-      until pg_isready -h "$PRIMARY" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -p $POSTGRES_PORT >/dev/null 2>&1 && \
-          psql -h "$PRIMARY" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -p $POSTGRES_PORT -tAc "SELECT 1" >/dev/null 2>&1; do
+      until pg_isready -h "$PRIMARY" -U "$POSTGRES_CHECK_USER" -d "$POSTGRES_DB" -p $POSTGRES_PORT >/dev/null 2>&1 && \
+          psql -h "$PRIMARY" -U "$POSTGRES_CHECK_USER" -d "$POSTGRES_DB" -p $POSTGRES_PORT -tAc "SELECT 1" >/dev/null 2>&1; do
         echo "Waiting for primary to be ready..."
         sleep 5
       done

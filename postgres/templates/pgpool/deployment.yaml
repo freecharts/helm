@@ -42,7 +42,7 @@ spec:
             - name: PGPOOL_USER
               value: {{ .Values.global.pgPoolUser | quote }}
             - name: PCPPASSFILE 
-              value: /opt/pgpool/conf/.pcppass
+              value: /opt/pgpool/.pcppass
             - name: PGPOOL_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -55,7 +55,7 @@ spec:
             - name: POSTGRES_CHECK_USER
               value: {{ .Values.global.pgCheckUser | quote }}
             - name: PGPASSFILE
-              value: /opt/pgpool/conf/.pgpass
+              value: /opt/pgpool/.pgpass
           command:
             - sh
           args:
@@ -92,7 +92,7 @@ spec:
             - name: PGPOOL_USER
               value: {{ .Values.global.pgPoolUser | quote }}
             - name: PCPPASSFILE 
-              value: /opt/pgpool/conf/.pcppass
+              value: /opt/pgpool/.pcppass
             - name: POSTGRES_PORT
               value: {{ .Values.postgresql.containerPort | quote }}
             - name: POSTGRES_DB
@@ -102,7 +102,7 @@ spec:
             - name: POSTGRES_CHECK_USER
               value: {{ .Values.global.pgCheckUser | quote }}
             - name: PGPASSFILE
-              value: /opt/pgpool/conf/.pgpass
+              value: /opt/pgpool/.pgpass
           {{- if not .Values.pgpool.diagnosticModeEnabled }}
           startingProbe:
             exec:
@@ -157,7 +157,7 @@ spec:
             - name: PGPOOL_USER
               value: {{ .Values.global.pgPoolUser }}
             - name: PCPPASSFILE 
-              value: /opt/pgpool/conf/.pcppass
+              value: /opt/pgpool/.pcppass
             - name: POSTGRES_PORT
               value: {{ .Values.postgresql.containerPort | quote }}
             - name: POSTGRES_DB
@@ -165,7 +165,7 @@ spec:
             - name: POSTGRES_CHECK_USER
               value: {{ .Values.global.pgCheckUser | quote }}
             - name: PGPASSFILE
-              value: /opt/pgpool/conf/.pgpass
+              value: /opt/pgpool/.pgpass
           command:
             - sh
           args:

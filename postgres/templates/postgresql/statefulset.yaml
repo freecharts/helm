@@ -66,6 +66,8 @@ spec:
           securityContext:
             runAsUser: 0
           env:
+            - name: PGMOUNT
+              value: {{ .Values.postgresql.persistence.mountPath | quote }}
             - name: PGDATA
               value: {{ printf "%s/pgdata" .Values.postgresql.persistence.mountPath | quote }}
             - name: POSTGRES_PORT
@@ -80,6 +82,8 @@ spec:
             - name: POSTGRES_REP_USER
               value: {{ .Values.global.pgRepUser | quote }}
             {{- end }}
+            - name: PGPASSFILE
+              value: {{ printf "%s/.pgpass" .Values.postgresql.persistence.mountPath | quote }}
             - name: POD_NAME
               valueFrom:
                 fieldRef:
@@ -89,7 +93,6 @@ spec:
           args:
             - -c
             - |
-              PGMOUNT={{ .Values.postgresql.persistence.mountPath }}
               USER={{ .Values.postgresql.containerSecurityContext.runAsUser }}
               GROUP={{ .Values.postgresql.containerSecurityContext.runAsGroup }}
               NS=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
@@ -107,14 +110,14 @@ spec:
                 echo "Already initialized, skipping folder structure creation"
               fi
 
-              echo "#hostname:port:database:username:password" > $PGMOUNT/conf/.pgpass && \
-              echo "*:${POSTGRES_PORT}:${POSTGRES_DB}:${POSTGRES_USER}:$(cat /run/secrets/postgresql/POSTGRES_PASSWORD)" >> $PGMOUNT/conf/.pgpass && \
-              echo "*:${POSTGRES_PORT}:${POSTGRES_DB}:${POSTGRES_CHECK_USER}:$(cat /run/secrets/postgresql/POSTGRES_CHECK_PASSWORD)" >> $PGMOUNT/conf/.pgpass && \
+              echo "#hostname:port:database:username:password" > $PGPASSFILE && \
+              echo "*:${POSTGRES_PORT}:${POSTGRES_DB}:${POSTGRES_USER}:$(cat /run/secrets/postgresql/POSTGRES_PASSWORD)" >> $PGPASSFILE && \
+              echo "*:${POSTGRES_PORT}:${POSTGRES_DB}:${POSTGRES_CHECK_USER}:$(cat /run/secrets/postgresql/POSTGRES_CHECK_PASSWORD)" >> $PGPASSFILE && \
               {{- if .Values.pgpool.enable }}
-              echo "${PRIMARY}:${POSTGRES_PORT}:replication:${POSTGRES_REP_USER}:$(cat /run/secrets/postgresql/POSTGRES_REP_PASSWORD)" >> $PGMOUNT/conf/.pgpass
+              echo "${PRIMARY}:${POSTGRES_PORT}:replication:${POSTGRES_REP_USER}:$(cat /run/secrets/postgresql/POSTGRES_REP_PASSWORD)" >> $PGPASSFILE
               {{- end }}
-              chmod 600 $PGMOUNT/conf/.pgpass && \
-              chown ${USER}:${GROUP} $PGMOUNT/conf/.pgpass
+              chmod 600 $PGPASSFILE && \
+              chown ${USER}:${GROUP} $PGPASSFILE
 
               cat > /sql/init-users.sql <<EOF
               DO
@@ -201,7 +204,7 @@ spec:
             - name: POSTGRES_REP_USER
               value: {{ .Values.global.pgRepUser | quote }}
             - name: PGPASSFILE
-              value: {{ printf "%s/conf/.pgpass" .Values.postgresql.persistence.mountPath | quote }}
+              value: {{ printf "%s/.pgpass" .Values.postgresql.persistence.mountPath | quote }}
             - name: POD_NAME
               valueFrom:
                 fieldRef:
@@ -249,7 +252,7 @@ spec:
             - name: POSTGRES_PASSWORD_FILE
               value: /run/secrets/postgresql/POSTGRES_PASSWORD
             - name: PGPASSFILE
-              value: {{ printf "%s/conf/.pgpass" .Values.postgresql.persistence.mountPath | quote }}
+              value: {{ printf "%s/.pgpass" .Values.postgresql.persistence.mountPath | quote }}
             - name: POSTGRES_INITDB_ARGS
               value: >-
                 -c include_if_exists={{ printf "%s/conf/postgresql.conf" .Values.postgresql.persistence.mountPath | quote }}
@@ -307,12 +310,7 @@ spec:
               mountPath: {{ .Values.postgresql.persistence.mountPath }}
               subPath:  {{ .Values.postgresql.persistence.subPath | default "" }}
             - name: config
-              mountPath: {{ printf "%s/conf/pg_hba.conf" .Values.postgresql.persistence.mountPath }}
-              subPath: pg_hba.conf
-              readOnly: true
-            - name: config
-              mountPath: {{ printf "%s/conf/postgresql.conf" .Values.postgresql.persistence.mountPath }}
-              subPath: postgresql.conf
+              mountPath: {{ printf "%s/conf" .Values.postgresql.persistence.mountPath }}
               readOnly: true
             - name: scripts
               mountPath: /opt/scripts/check-node-status.sh
