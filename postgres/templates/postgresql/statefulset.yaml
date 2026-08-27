@@ -14,7 +14,7 @@ metadata:
     role: data
 spec:
   serviceName: {{ printf "%s-hl" (include "helper.names.fullname" .) }}
-  {{- if .Values.pgpool.enable }}
+  {{ if .Values.pgpool.enable }}
   replicas: {{ .Values.postgresql.replicas }}
   {{- else -}}
   replicas: 1
@@ -312,10 +312,12 @@ spec:
             - name: config
               mountPath: {{ printf "%s/conf" .Values.postgresql.persistence.mountPath }}
               readOnly: true
+            {{- if .Values.pgpool.enable }}
             - name: scripts
               mountPath: /opt/scripts/check-node-status.sh
               subPath: check-node-status.sh
               readOnly: true
+            {{- end }}
             - name: dev-shm
               mountPath: /dev/shm
             - name: empty-dir
