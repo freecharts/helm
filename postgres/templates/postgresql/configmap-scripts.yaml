@@ -4,7 +4,6 @@
 */}}
 
 {{- if .Values.pgpool.enable -}}
-
 apiVersion: v1
 kind: ConfigMap
 metadata:
