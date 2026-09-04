@@ -43,11 +43,6 @@ spec:
               value: {{ .Values.global.pgPoolUser | quote }}
             - name: PCPPASSFILE 
               value: /opt/pgpool/.pcppass
-            - name: PGPOOL_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "helper.names.fullname" . }}
-                  key: PGPOOL_PASSWORD
             - name: POSTGRES_PORT
               value: {{ .Values.postgresql.containerPort | quote }}
             - name: POSTGRES_DB

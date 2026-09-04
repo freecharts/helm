@@ -119,6 +119,7 @@ spec:
               chmod 600 $PGPASSFILE && \
               chown ${USER}:${GROUP} $PGPASSFILE
 
+              # Create users and grant privileges
               cat > /sql/init-users.sql <<EOF
               DO
               \$\$
