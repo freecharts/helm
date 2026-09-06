@@ -276,6 +276,20 @@ pgpool:
       drop: ["ALL"]
     seccompProfile:
       type: "RuntimeDefault"
+  ## @param pgpool.tls TLS configuration for pgpool, more information can be found here: https://www.pgpool.net/docs/latest/en/html/configuring-ssl.html
+  tls:
+    ## @param pgpool.tls.enable Enable TLS for pgpool
+    enable: false
+    ## @param pgpool.cert This sets the TLS certificate for pgpool, more information can be found here: https://www.pgpool.net/docs/latest/en/html/configuring-ssl.html
+    crt: |-
+      -----BEGIN CERTIFICATE-----
+      ...
+      -----END CERTIFICATE-----
+    ## @param pgpool.key This sets the TLS key for pgpool, more information can be found here: https://www.pgpool.net/docs/latest/en/html/configuring-ssl.html
+    key: |-
+      -----BEGIN PRIVATE KEY-----
+      ...
+      -----END PRIVATE KEY-----
 
 ## This is for setting up a service, more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/
 service:
