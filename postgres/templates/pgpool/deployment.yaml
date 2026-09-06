@@ -47,6 +47,8 @@ spec:
               value: {{ .Values.postgresql.containerPort | quote }}
             - name: POSTGRES_DB
               value: {{ .Values.global.pgDbName }}
+            - name: POSTGRES_USER
+              value: {{ .Values.global.pgDbUser | quote }}
             - name: POSTGRES_CHECK_USER
               value: {{ .Values.global.pgCheckUser | quote }}
             - name: PGPASSFILE

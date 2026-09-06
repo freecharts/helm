@@ -32,6 +32,7 @@ data:
 
     echo "#hostname:port:database:username:password" > $PGPASSFILE && \
     echo "*:${POSTGRES_PORT}:${POSTGRES_DB}:${POSTGRES_CHECK_USER}:$(cat /run/secrets/postgresql/POSTGRES_CHECK_PASSWORD)" >> $PGPASSFILE && \
+    echo "*:${POSTGRES_PORT}:${POSTGRES_DB}:${POSTGRES_USER}:$(cat /run/secrets/postgresql/POSTGRES_PASSWORD)" >> $PGPASSFILE && \
     chmod 600 $PGPASSFILE && \
     chown ${USER}:${GROUP} $PGPASSFILE
 
