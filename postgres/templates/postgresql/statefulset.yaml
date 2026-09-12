@@ -119,7 +119,7 @@ spec:
               chmod 600 $PGPASSFILE && \
               chown ${USER}:${GROUP} $PGPASSFILE
 
-              # Create users and grant privileges
+              # Create users and grant privileges 
               cat > /sql/init-users.sql <<EOF
               DO
               \$\$
@@ -341,14 +341,33 @@ spec:
           configMap:
             name: {{ include "helper.names.fullname" . }}
             defaultMode: 0440
+            items:
+              - key: postgresql.conf
+                path: postgresql.conf
+              - key: pg_hba.conf
+                path: pg_hba.conf
         - name: scripts
           configMap:
             name: {{ include "helper.names.fullname" . }}-scripts
             defaultMode: 0550
+            items:
+              - key: init-primary.sh
+                path: init-primary.sh
+              - key: init-replica.sh
+                path: init-replica.sh
+              - key: check-node-status.sh
+                path: check-node-status.sh
         - name: secrets
           secret:
             secretName: {{ include "helper.names.fullname" . }}
             defaultMode: 0440
+            items:
+              - key: POSTGRES_PASSWORD
+                path: POSTGRES_PASSWORD
+              - key: POSTGRES_CHECK_PASSWORD
+                path: POSTGRES_CHECK_PASSWORD
+              - key: POSTGRES_REP_PASSWORD
+                path: POSTGRES_REP_PASSWORD
   volumeClaimTemplates:
     - apiVersion: v1
       kind: PersistentVolumeClaim

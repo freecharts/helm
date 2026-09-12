@@ -62,6 +62,14 @@ data:
     enable_pool_hba = off
     pool_passwd = '/opt/pgpool/conf/pool_passwd'
     allow_clear_text_frontend_auth = on
+    # SSL settings
+    {{- if and .Values.pgpool.tls.enable .Values.pgpool.tls.crt .Values.pgpool.tls.key }}
+    ssl = on
+    ssl_cert = '/opt/pgpool/tls/tls.crt'
+    ssl_key = '/opt/pgpool/tls/tls.key'
+    {{- else }}
+    ssl = off
+    {{- end }}
     # Replication settings
     backend_clustering_mode = 'streaming_replication'
     load_balance_mode = on

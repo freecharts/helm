@@ -63,8 +63,7 @@ spec:
             - name: data
               mountPath: /opt/pgpool
             - name: scripts
-              mountPath: /opt/scripts/init-pgpool.sh
-              subPath: init-pgpool.sh
+              mountPath: /opt/scripts
               readOnly: true
             - name: secrets
               mountPath: /run/secrets/postgresql
@@ -140,8 +139,11 @@ spec:
               mountPath: /opt/pgpool/conf/pgpool.conf
               subPath: pgpool.conf
             - name: scripts
-              mountPath: /opt/scripts/failover.sh
-              subPath: failover.sh
+              mountPath: /opt/scripts
+              readOnly: true
+            - name: tls
+              mountPath: /opt/pgpool/tls
+              readOnly: true
         - name: {{ include "postgres.pgpoolName" . }}-watcher
           image: {{ include "helper.images.image" (dict "imageRoot" .Values.pgpool.image "global" .Values.global) }}
           imagePullPolicy: {{ include "helper.images.pullPolicy" (dict "imageRoot" .Values.pgpool.image "global" .Values.global) }}
@@ -173,8 +175,7 @@ spec:
             - name: data
               mountPath: /opt/pgpool
             - name: scripts
-              mountPath: /opt/scripts/pgpool-watcher.sh
-              subPath: pgpool-watcher.sh
+              mountPath: /opt/scripts
               readOnly: true
       volumes:
         - name: data
@@ -183,12 +184,38 @@ spec:
           configMap:
             name: {{ include "helper.names.fullname" . }}
             defaultMode: 0440
+            items:
+              - key: pgpool.conf
+                path: pgpool.conf
         - name: scripts
           configMap:
             name: {{ include "helper.names.fullname" . }}-scripts
             defaultMode: 0550
+            items:
+              - key: init-pgpool.sh
+                path: init-pgpool.sh
+              - key: pgpool-watcher.sh
+                path: pgpool-watcher.sh
+              - key: failover.sh
+                path: failover.sh
         - name: secrets
           secret:
             secretName: {{ include "helper.names.fullname" . }}
             defaultMode: 0440
+            items:
+              - key: PGPOOL_PASSWORD
+                path: PGPOOL_PASSWORD
+              - key: POSTGRES_PASSWORD
+                path: POSTGRES_PASSWORD
+              - key: POSTGRES_CHECK_PASSWORD
+                path: POSTGRES_CHECK_PASSWORD
+        - name: tls
+          secret:
+            secretName: {{ printf "%s-tls" (include "postgres.pgpoolName" .) }}
+            defaultMode: 0440
+            items:
+              - key: tls.crt
+                path: tls.crt
+              - key: tls.key
+                path: tls.key
 {{- end -}}
